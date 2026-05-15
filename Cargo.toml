@@ -1,0 +1,34 @@
+[workspace]
+members = [
+    "crates/agent-core",
+    "crates/agent-tools", 
+    "crates/agent-config",
+    "crates/agent-llm",
+    "crates/agent-cli",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["Agent Framework Contributors"]
+license = "MIT"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+async-trait = "0.1"
+reqwest = { version = "0.12", features = ["json", "stream"] }
+futures = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4"] }
+schemars = "0.8"
+clap = { version = "4", features = ["derive"] }
+toml = "0.8"
+dirs = "5"
+walkdir = "2"

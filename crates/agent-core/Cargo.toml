@@ -1,0 +1,21 @@
+[package]
+name = "agent-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+futures.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+async-trait.workspace = true
+agent-tools = { path = "../agent-tools" }
+agent-llm = { path = "../agent-llm" }
+agent-config = { path = "../agent-config" }
+
+[dev-dependencies]
+tokio.workspace = true
