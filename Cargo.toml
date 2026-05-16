@@ -5,6 +5,15 @@ members = [
     "crates/agent-config",
     "crates/agent-llm",
     "crates/agent-cli",
+    "crates/agent-plugin-sdk",
+    "crates/agent-gateway",
+    "crates/agent-worker",
+    "crates/agent-memory",
+    "crates/agent-skills",
+    "crates/agent-permission",
+    "tools/read-file",
+    "tools/write-file",
+    "tools/shell",
 ]
 resolver = "2"
 
