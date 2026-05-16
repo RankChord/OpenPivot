@@ -22,7 +22,7 @@ impl Agent {
         }
     }
 
-    pub async fn run(&self, mut input: AgentInput) -> Result<AgentOutput, AgentError> {
+    pub async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
         let mut messages = build_api_messages(
             &input.system_prompt,
             &input.user_message,
