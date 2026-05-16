@@ -1,0 +1,15 @@
+[package]
+name = "tool-web-search"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "web_search"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+agent-tools = { path = "../../crates/agent-tools" }

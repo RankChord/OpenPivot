@@ -13,9 +13,13 @@ members = [
     "crates/agent-permission",
     "crates/agent-cron",
     "crates/agent-delegate",
+    "crates/agent-tui",
+    "crates/agent-sessions",
     "tools/read-file",
     "tools/write-file",
     "tools/shell",
+    "tools/todo-tool",
+    "tools/web-search",
 ]
 resolver = "2"
 
@@ -43,3 +47,6 @@ clap = { version = "4", features = ["derive"] }
 toml = "0.8"
 dirs = "5"
 walkdir = "2"
+ratatui = "0.29"
+crossterm = "0.28"
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
