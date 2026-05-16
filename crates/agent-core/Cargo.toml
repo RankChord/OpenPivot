@@ -11,7 +11,7 @@ tracing.workspace = true
 tokio.workspace = true
 futures.workspace = true
 uuid.workspace = true
-chrono.workspace = true
+
 async-trait.workspace = true
 agent-tools = { path = "../agent-tools" }
 agent-llm = { path = "../agent-llm" }

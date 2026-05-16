@@ -1,0 +1,15 @@
+[package]
+name = "tool-write-file"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "write_file"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+async-trait.workspace = true
+agent-tools = { path = "../../crates/agent-tools" }

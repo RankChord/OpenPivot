@@ -1,4 +1,4 @@
-use agent_llm::{LlmClientConfig, LlmError};
+use agent_llm::LlmClientConfig;
 
 #[test]
 fn test_client_creation() {

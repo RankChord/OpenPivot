@@ -1,0 +1,17 @@
+[package]
+name = "tool-shell"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "shell_tool"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+agent-tools = { path = "../../crates/agent-tools" }
+
+[target.'cfg(unix)'.dependencies]
+tokio = { workspace = true, features = ["process", "io-util"] }

@@ -60,8 +60,10 @@ impl LlmClient {
         
         let json: serde_json::Value = response.json().await?;
         
-        let choice = &json["choices"][0];
-        let message_data = &choice["message"];
+        let choices = json["choices"].as_array()
+            .and_then(|a| a.first())
+            .ok_or_else(|| LlmError::ApiError("Empty choices in response".into()))?;
+        let message_data = &choices["message"];
         
         let message = ChatMessage {
             role: MessageRole::Assistant,
@@ -83,7 +85,7 @@ impl LlmClient {
         Ok(ChatResponse {
             message,
             usage,
-            finish_reason: choice["finish_reason"].as_str().map(|s| s.to_string()),
+            finish_reason: choices["finish_reason"].as_str().map(|s| s.to_string()),
         })
     }
 }

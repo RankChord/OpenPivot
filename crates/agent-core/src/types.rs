@@ -1,4 +1,26 @@
 use agent_llm::ChatMessage;
+use std::path::PathBuf;
+
+#[derive(Debug)]
+pub enum AgentError {
+    LlmError(String),
+    ToolError(String),
+    ConfigError(String),
+    IoError(String),
+}
+
+impl std::fmt::Display for AgentError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AgentError::LlmError(e) => write!(f, "LLM error: {}", e),
+            AgentError::ToolError(e) => write!(f, "Tool error: {}", e),
+            AgentError::ConfigError(e) => write!(f, "Config error: {}", e),
+            AgentError::IoError(e) => write!(f, "IO error: {}", e),
+        }
+    }
+}
+
+impl std::error::Error for AgentError {}
 
 #[derive(Debug)]
 pub enum AgentOutput {
@@ -13,6 +35,7 @@ pub struct AgentInput {
     pub session_id: String,
     pub system_prompt: String,
     pub history: Vec<ChatMessage>,
+    pub workspace_dir: PathBuf,
 }
 
 pub fn build_api_messages(
