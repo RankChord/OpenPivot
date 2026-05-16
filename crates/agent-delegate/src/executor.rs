@@ -1,5 +1,4 @@
-use crate::task::{DelegateTask, DelegateMode, DelegateRole};
-use std::collections::HashMap;
+use crate::task::{DelegateTask, DelegateRole};
 
 #[derive(Debug, thiserror::Error)]
 pub enum DelegateError {

@@ -1,0 +1,11 @@
+[package]
+name = "agent-plugin-sdk"
+version.workspace = true
+edition.workspace = true
+description = "Plugin SDK for agent-framework — pure traits, zero runtime deps"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
