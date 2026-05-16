@@ -11,6 +11,8 @@ members = [
     "crates/agent-memory",
     "crates/agent-skills",
     "crates/agent-permission",
+    "crates/agent-cron",
+    "crates/agent-delegate",
     "tools/read-file",
     "tools/write-file",
     "tools/shell",
