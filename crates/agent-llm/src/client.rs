@@ -10,8 +10,8 @@ pub struct LlmClientConfig {
 }
 
 pub struct LlmClient {
-    http: Client,
-    config: LlmClientConfig,
+    pub(crate) http: Client,
+    pub(crate) config: LlmClientConfig,
 }
 
 impl LlmClient {

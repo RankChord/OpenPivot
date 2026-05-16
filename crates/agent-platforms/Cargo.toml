@@ -1,0 +1,14 @@
+[package]
+name = "agent-platforms"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+reqwest.workspace = true
+agent-llm = { path = "../agent-llm" }

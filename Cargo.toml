@@ -15,6 +15,7 @@ members = [
     "crates/agent-delegate",
     "crates/agent-tui",
     "crates/agent-sessions",
+    "crates/agent-platforms",
     "tools/read-file",
     "tools/write-file",
     "tools/shell",
