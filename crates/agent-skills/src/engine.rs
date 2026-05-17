@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 pub struct SkillEngine {
     skills: HashMap<String, SkillDefinition>,
+    #[allow(dead_code)]
     config_vars: HashMap<String, String>,
     disabled_skills: Vec<String>,
 }

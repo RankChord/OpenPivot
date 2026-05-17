@@ -61,6 +61,7 @@ impl Tool for WebSearchTool {
     fn is_read_only(&self) -> bool { true }
 }
 
+#[allow(improper_ctypes_definitions)]
 #[unsafe(no_mangle)]
 pub extern "C" fn create_tool() -> Box<dyn Tool> {
     Box::new(WebSearchTool::new())

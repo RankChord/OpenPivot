@@ -108,6 +108,7 @@ impl Tool for WriteFileTool {
     fn is_destructive(&self) -> bool { true }
 }
 
+#[allow(improper_ctypes_definitions)]
 #[unsafe(no_mangle)]
 pub extern "C" fn create_tool() -> Box<dyn Tool> {
     Box::new(WriteFileTool::new())

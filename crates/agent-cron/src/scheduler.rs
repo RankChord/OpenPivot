@@ -38,7 +38,7 @@ impl CronScheduler {
         }
     }
 
-    pub async fn tick_loop<F>(&self, mut execute_fn: F)
+    pub async fn tick_loop<F>(&self, execute_fn: F)
     where
         F: FnMut(CronJob) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>
             + Send

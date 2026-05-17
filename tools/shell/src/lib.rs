@@ -120,6 +120,7 @@ impl Tool for ShellTool {
     fn interrupt_behavior(&self) -> InterruptPolicy { InterruptPolicy::Cancel }
 }
 
+#[allow(improper_ctypes_definitions)]
 #[unsafe(no_mangle)]
 pub extern "C" fn create_tool() -> Box<dyn Tool> {
     Box::new(ShellTool::new())

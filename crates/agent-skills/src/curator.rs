@@ -13,7 +13,9 @@ pub struct UsageStats {
 
 pub struct Curator {
     usage_log: std::collections::HashMap<String, UsageStats>,
+    #[allow(dead_code)]
     archive_dir: PathBuf,
+    #[allow(dead_code)]
     skills_dir: PathBuf,
     pub stale_after_days: u32,
     pub archive_after_days: u32,
@@ -46,6 +48,7 @@ impl Curator {
         Ok(vec![])
     }
 
+    #[allow(dead_code)]
     fn should_archive(&self, skill_name: &str) -> bool {
         if let Some(stats) = self.usage_log.get(skill_name) {
             if stats.is_pinned { return false; }

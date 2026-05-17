@@ -1,3 +1,4 @@
+#[cfg(test)]
 use crate::job::Schedule;
 
 #[cfg(test)]

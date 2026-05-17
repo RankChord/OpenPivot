@@ -51,7 +51,6 @@ impl Tool for ReadFileTool {
         let limit = input["limit"].as_u64().unwrap_or(1000) as usize;
         let offset = input["offset"].as_u64().unwrap_or(0) as usize;
         let workspace_dir = ctx.workspace_dir.to_path_buf();
-        drop(ctx);
 
         let full_path = if path_str.starts_with('/') {
             PathBuf::from(path_str)
@@ -90,6 +89,7 @@ impl Tool for ReadFileTool {
     fn is_read_only(&self) -> bool { true }
 }
 
+#[allow(improper_ctypes_definitions)]
 #[unsafe(no_mangle)]
 pub extern "C" fn create_tool() -> Box<dyn Tool> {
     Box::new(ReadFileTool::new())

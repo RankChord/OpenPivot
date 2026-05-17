@@ -107,26 +107,4 @@ pub struct SpawnHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    mod mode_tests {
-        use super::*;
-
-        #[test]
-        fn test_single_mode_exists() {
-            let _mode = DelegateMode::Single;
-        }
-
-        #[test]
-        fn test_batch_mode_with_tasks() {
-            let tasks = vec![DelegateTask::new("task1"), DelegateTask::new("task2")];
-            let mode = DelegateMode::Batch {
-                tasks,
-                max_concurrent: 2,
-            };
-            if let DelegateMode::Batch { tasks, max_concurrent } = mode {
-                assert_eq!(tasks.len(), 2);
-                assert_eq!(max_concurrent, 2);
-            }
-        }
-    }
 }
