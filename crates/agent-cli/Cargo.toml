@@ -4,11 +4,41 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-clap.workspace = true
+clap = { workspace = true }
+axum.workspace = true
+serde.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+tracing-appender.workspace = true
 anyhow.workspace = true
 dirs.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+tokio-stream.workspace = true
+async-trait.workspace = true
+sqlx.workspace = true
+
 agent-core = { path = "../agent-core" }
 agent-config = { path = "../agent-config" }
+agent-llm = { path = "../agent-llm" }
+agent-tools = { path = "../agent-tools" }
+agent-sessions = { path = "../agent-sessions" }
+agent-skills = { path = "../agent-skills" }
+agent-tui = { path = "../agent-tui" }
+agent-cron = { path = "../agent-cron" }
+agent-kanban = { path = "../agent-kanban" }
+
+# Tool aliases
+read_file = { package = "tool-read-file", path = "../../tools/read-file" }
+write_file = { package = "tool-write-file", path = "../../tools/write-file" }
+shell_tool = { package = "tool-shell", path = "../../tools/shell" }
+todo_tool = { package = "tool-todo", path = "../../tools/todo-tool" }
+web_search = { package = "tool-web-search", path = "../../tools/web-search" }
+browser_tool = { package = "tool-browser", path = "../../tools/browser" }
+delegate_tool = { package = "tool-delegate", path = "../../tools/delegate" }
+cron_job = { package = "tool-cron-job", path = "../../tools/cron-job" }
+
+[dev-dependencies]
+tempfile = "3"
+tower = "0.5"

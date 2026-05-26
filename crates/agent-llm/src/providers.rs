@@ -31,7 +31,10 @@ impl LlmProviderClient {
         }
     }
 
-    async fn openai_compatible_chat(&self, messages: Vec<ChatMessage>) -> Result<ChatResponse, LlmError> {
+    async fn openai_compatible_chat(
+        &self,
+        messages: Vec<ChatMessage>,
+    ) -> Result<ChatResponse, LlmError> {
         let base_url = self.config.base_url.trim_end_matches('/');
         let url = format!("{}/v1/chat/completions", base_url);
 
@@ -47,7 +50,8 @@ impl LlmProviderClient {
             body["temperature"] = temp.into();
         }
 
-        let response = self.http
+        let response = self
+            .http
             .post(&url)
             .header("Authorization", format!("Bearer {}", self.config.api_key))
             .header("Content-Type", "application/json")
@@ -69,7 +73,8 @@ impl LlmProviderClient {
 
         let json: serde_json::Value = response.json().await?;
 
-        let choices = json["choices"].as_array()
+        let choices = json["choices"]
+            .as_array()
             .and_then(|a| a.first())
             .ok_or_else(|| LlmError::ApiError("Empty choices in response".into()))?;
         let message_data = &choices["message"];
@@ -78,7 +83,11 @@ impl LlmProviderClient {
             role: MessageRole::Assistant,
             content: message_data["content"].as_str().map(|s| s.to_string()),
             tool_calls: if message_data["tool_calls"].is_array() {
-                Some(serde_json::from_value(message_data["tool_calls"].clone()).ok().unwrap_or_default())
+                Some(
+                    serde_json::from_value(message_data["tool_calls"].clone())
+                        .ok()
+                        .unwrap_or_default(),
+                )
             } else {
                 None
             },
@@ -86,7 +95,11 @@ impl LlmProviderClient {
         };
 
         let usage = if json["usage"].is_object() {
-            Some(serde_json::from_value(json["usage"].clone()).ok().unwrap_or_default())
+            Some(
+                serde_json::from_value(json["usage"].clone())
+                    .ok()
+                    .unwrap_or_default(),
+            )
         } else {
             None
         };
@@ -102,19 +115,23 @@ impl LlmProviderClient {
         let base_url = self.config.base_url.trim_end_matches('/');
         let url = format!("{}/v1/messages", base_url);
 
-        let anthropic_messages: Vec<serde_json::Value> = messages.iter().map(|m| {
-            let role = match m.role {
-                MessageRole::User | MessageRole::System => "user",
-                MessageRole::Assistant => "assistant",
-                MessageRole::Tool => "user",
-            };
-            serde_json::json!({
-                "role": role,
-                "content": m.content.as_deref().unwrap_or("")
+        let anthropic_messages: Vec<serde_json::Value> = messages
+            .iter()
+            .map(|m| {
+                let role = match m.role {
+                    MessageRole::User | MessageRole::System => "user",
+                    MessageRole::Assistant => "assistant",
+                    MessageRole::Tool => "user",
+                };
+                serde_json::json!({
+                    "role": role,
+                    "content": m.content.as_deref().unwrap_or("")
+                })
             })
-        }).collect();
+            .collect();
 
-        let system_message = messages.iter()
+        let system_message = messages
+            .iter()
             .find(|m| m.role == MessageRole::System)
             .and_then(|m| m.content.as_deref())
             .unwrap_or("");
@@ -130,7 +147,8 @@ impl LlmProviderClient {
             body["temperature"] = temp.into();
         }
 
-        let response = self.http
+        let response = self
+            .http
             .post(&url)
             .header("x-api-key", &self.config.api_key)
             .header("anthropic-version", "2023-06-01")
@@ -161,7 +179,11 @@ impl LlmProviderClient {
         };
 
         let usage = if json["usage"].is_object() {
-            Some(serde_json::from_value(json["usage"].clone()).ok().unwrap_or_default())
+            Some(
+                serde_json::from_value(json["usage"].clone())
+                    .ok()
+                    .unwrap_or_default(),
+            )
         } else {
             None
         };

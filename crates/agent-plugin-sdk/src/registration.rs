@@ -39,11 +39,29 @@ impl ToolBuilder {
             is_destructive: false,
         }
     }
-    
-    pub fn description(mut self, desc: &str) -> Self { self.description = desc.into(); self }
-    pub fn toolset(mut self, name: &str) -> Self { self.toolset_name = name.into(); self }
-    pub fn concurrency_safe(mut self, val: bool) -> Self { self.is_concurrency_safe = val; self }
-    pub fn read_only(mut self, val: bool) -> Self { self.is_read_only = val; self }
-    pub fn destructive(mut self, val: bool) -> Self { self.is_destructive = val; self }
-    pub fn max_result(mut self, size: usize) -> Self { self.max_result_size = size; self }
+
+    pub fn description(mut self, desc: &str) -> Self {
+        self.description = desc.into();
+        self
+    }
+    pub fn toolset(mut self, name: &str) -> Self {
+        self.toolset_name = name.into();
+        self
+    }
+    pub fn concurrency_safe(mut self, val: bool) -> Self {
+        self.is_concurrency_safe = val;
+        self
+    }
+    pub fn read_only(mut self, val: bool) -> Self {
+        self.is_read_only = val;
+        self
+    }
+    pub fn destructive(mut self, val: bool) -> Self {
+        self.is_destructive = val;
+        self
+    }
+    pub fn max_result(mut self, size: usize) -> Self {
+        self.max_result_size = size;
+        self
+    }
 }

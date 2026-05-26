@@ -1,7 +1,7 @@
 //! Curator — auto-archives stale agent-created skills
 
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageStats {
@@ -33,12 +33,15 @@ impl Curator {
     }
 
     pub fn record_use(&mut self, skill_name: &str) {
-        let stats = self.usage_log.entry(skill_name.into()).or_insert_with(|| UsageStats {
-            use_count: 0,
-            last_used: chrono::Utc::now(),
-            created_by: "user".into(),
-            is_pinned: false,
-        });
+        let stats = self
+            .usage_log
+            .entry(skill_name.into())
+            .or_insert_with(|| UsageStats {
+                use_count: 0,
+                last_used: chrono::Utc::now(),
+                created_by: "user".into(),
+                is_pinned: false,
+            });
         stats.use_count += 1;
         stats.last_used = chrono::Utc::now();
     }
@@ -51,7 +54,9 @@ impl Curator {
     #[allow(dead_code)]
     fn should_archive(&self, skill_name: &str) -> bool {
         if let Some(stats) = self.usage_log.get(skill_name) {
-            if stats.is_pinned { return false; }
+            if stats.is_pinned {
+                return false;
+            }
             let days = (chrono::Utc::now() - stats.last_used).num_days() as u64;
             return days >= self.archive_after_days as u64 && stats.created_by == "agent";
         }

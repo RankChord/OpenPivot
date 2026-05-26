@@ -1,4 +1,4 @@
-use crate::task::{DelegateTask, DelegateRole};
+use crate::task::{DelegateRole, DelegateTask};
 
 #[derive(Debug, thiserror::Error)]
 pub enum DelegateError {
@@ -105,6 +105,4 @@ pub struct SpawnHandle {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-}
+mod tests {}

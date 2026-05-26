@@ -1,7 +1,7 @@
 //! Streaming support for LLM responses
 
-use crate::types::*;
 use crate::client::LlmClient;
+use crate::types::*;
 use futures::Stream;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -42,7 +42,8 @@ impl LlmClient {
             body["max_tokens"] = max_tokens.into();
         }
 
-        let response = self.http
+        let response = self
+            .http
             .post(&url)
             .header("Authorization", format!("Bearer {}", self.config.api_key))
             .header("Content-Type", "application/json")
@@ -61,14 +62,14 @@ impl LlmClient {
 
         // Parse SSE stream
         let stream = response.bytes_stream();
-        
+
         use futures::StreamExt;
         let chat_stream = stream.filter_map(|chunk| async {
             let chunk = match chunk {
                 Ok(c) => c,
                 Err(e) => return Some(Err(LlmError::NetworkError(e))),
             };
-            
+
             let text = String::from_utf8_lossy(&chunk);
             for line in text.lines() {
                 if let Some(data) = line.strip_prefix("data: ") {
@@ -76,8 +77,13 @@ impl LlmClient {
                         return None;
                     }
                     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(data) {
-                        let text = parsed["choices"][0]["delta"]["content"].as_str().unwrap_or("").to_string();
-                        let finish = parsed["choices"][0]["finish_reason"].as_str().map(|s| s.to_string());
+                        let text = parsed["choices"][0]["delta"]["content"]
+                            .as_str()
+                            .unwrap_or("")
+                            .to_string();
+                        let finish = parsed["choices"][0]["finish_reason"]
+                            .as_str()
+                            .map(|s| s.to_string());
                         return Some(Ok(ChatStreamChunk {
                             text,
                             finish_reason: finish,

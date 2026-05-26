@@ -12,15 +12,20 @@ members = [
     "crates/agent-skills",
     "crates/agent-permission",
     "crates/agent-cron",
+    "crates/agent-kanban",
     "crates/agent-delegate",
-    "crates/agent-tui",
     "crates/agent-sessions",
     "crates/agent-platforms",
+    "crates/agent-cron-runner",
     "tools/read-file",
     "tools/write-file",
     "tools/shell",
     "tools/todo-tool",
     "tools/web-search",
+    "tools/cron-job",
+    "tools/browser",
+    "tools/delegate",
+    "crates/agent-tui",
 ]
 resolver = "2"
 
@@ -32,22 +37,22 @@ license = "MIT"
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
+axum = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
 anyhow = "1"
 async-trait = "0.1"
 reqwest = { version = "0.12", features = ["json", "stream"] }
 futures = "0.3"
+tokio-stream = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
-schemars = "0.8"
 clap = { version = "4", features = ["derive"] }
 toml = "0.8"
 dirs = "5"
 walkdir = "2"
-ratatui = "0.29"
-crossterm = "0.28"
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }

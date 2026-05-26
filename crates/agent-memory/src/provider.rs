@@ -15,7 +15,11 @@ pub enum MemoryError {
 pub trait MemoryProvider: Send + Sync {
     fn name(&self) -> &str;
 
-    async fn initialize(&mut self, session_id: &str, workspace: &std::path::Path) -> Result<(), MemoryError>;
+    async fn initialize(
+        &mut self,
+        session_id: &str,
+        workspace: &std::path::Path,
+    ) -> Result<(), MemoryError>;
 
     async fn prefetch(&mut self, query: &str) -> Result<String, MemoryError>;
 

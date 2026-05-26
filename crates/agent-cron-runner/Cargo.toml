@@ -1,0 +1,20 @@
+[package]
+name = "agent-cron-runner"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "agent-cron-runner"
+path = "src/main.rs"
+
+[dependencies]
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+dirs.workspace = true
+agent-cron = { path = "../agent-cron" }
+agent-kanban = { path = "../agent-kanban" }

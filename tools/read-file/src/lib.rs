@@ -1,5 +1,5 @@
+use agent_tools::{ProgressUpdate, Tool, ToolDefinition, ToolResult, ToolUseContext};
 use async_trait::async_trait;
-use agent_tools::{Tool, ToolDefinition, ToolUseContext, ToolResult, ProgressUpdate};
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -32,7 +32,9 @@ impl ReadFileTool {
 
 #[async_trait]
 impl Tool for ReadFileTool {
-    fn definition(&self) -> &ToolDefinition { &self.def }
+    fn definition(&self) -> &ToolDefinition {
+        &self.def
+    }
 
     async fn call(
         &self,
@@ -42,20 +44,53 @@ impl Tool for ReadFileTool {
     ) -> ToolResult {
         let path_str = match input["path"].as_str() {
             Some(p) => p.to_string(),
-            None => return ToolResult {
-                ok: false,
-                content: String::new(),
-                error: Some("Missing required parameter: path".into()),
-            },
+            None => {
+                return ToolResult {
+                    ok: false,
+                    content: String::new(),
+                    error: Some("Missing required parameter: path".into()),
+                };
+            }
         };
         let limit = input["limit"].as_u64().unwrap_or(1000) as usize;
         let offset = input["offset"].as_u64().unwrap_or(0) as usize;
-        let workspace_dir = ctx.workspace_dir.to_path_buf();
+        let workspace_dir = match ctx.workspace_dir.canonicalize() {
+            Ok(path) => path,
+            Err(e) => {
+                return ToolResult {
+                    ok: false,
+                    content: String::new(),
+                    error: Some(format!("Invalid workspace directory: {}", e)),
+                };
+            }
+        };
 
         let full_path = if path_str.starts_with('/') {
             PathBuf::from(path_str)
         } else {
             workspace_dir.join(path_str)
+        };
+
+        let full_path = match full_path.canonicalize() {
+            Ok(path) => path,
+            Err(e) => {
+                return ToolResult {
+                    ok: false,
+                    content: String::new(),
+                    error: Some(format!("Failed to resolve file path: {}", e)),
+                };
+            }
+        };
+
+        if !full_path.starts_with(&workspace_dir) {
+            return ToolResult {
+                ok: false,
+                content: String::new(),
+                error: Some(format!(
+                    "Path is outside workspace: {}",
+                    full_path.display()
+                )),
+            };
         };
 
         match tokio::fs::read_to_string(&full_path).await {
@@ -66,7 +101,12 @@ impl Tool for ReadFileTool {
                 let result = sliced.join("\n");
 
                 let header = if offset > 0 || sliced.len() < total_lines {
-                    format!("// Read {} lines from {} (total: {} lines)\n", sliced.len(), full_path.display(), total_lines)
+                    format!(
+                        "// Read {} lines from {} (total: {} lines)\n",
+                        sliced.len(),
+                        full_path.display(),
+                        total_lines
+                    )
                 } else {
                     String::new()
                 };
@@ -85,12 +125,16 @@ impl Tool for ReadFileTool {
         }
     }
 
-    fn is_concurrency_safe(&self) -> bool { true }
-    fn is_read_only(&self) -> bool { true }
+    fn is_concurrency_safe(&self) -> bool {
+        true
+    }
+    fn is_read_only(&self) -> bool {
+        true
+    }
 }
 
 #[allow(improper_ctypes_definitions)]
 #[unsafe(no_mangle)]
-pub extern "C" fn create_tool() -> Box<dyn Tool> {
+pub extern "C" fn create_read_file_tool() -> Box<dyn Tool> {
     Box::new(ReadFileTool::new())
 }

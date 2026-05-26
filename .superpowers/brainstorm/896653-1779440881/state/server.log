@@ -1,0 +1,5 @@
+{"type":"server-started","port":61938,"host":"0.0.0.0","url_host":"0.0.0.0","url":"http://0.0.0.0:61938","screen_dir":"/home/actions/reserch/.superpowers/brainstorm/896653-1779440881/content","state_dir":"/home/actions/reserch/.superpowers/brainstorm/896653-1779440881/state"}
+{"type":"screen-added","file":"/home/actions/reserch/.superpowers/brainstorm/896653-1779440881/content/agent-architecture-options.html"}
+{"type":"screen-added","file":"/home/actions/reserch/.superpowers/brainstorm/896653-1779440881/content/agent-architecture-options-zh.html"}
+{"type":"screen-added","file":"/home/actions/reserch/.superpowers/brainstorm/896653-1779440881/content/core-foundation-scope-zh.html"}
+{"type":"server-stopped","reason":"idle timeout"}

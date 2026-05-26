@@ -1,3 +1,5 @@
+use agent_cli::cmd;
+use agent_cli::logging;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -5,103 +7,106 @@ use std::path::PathBuf;
 #[command(name = "agent", version, about = "AI Agent Framework")]
 struct Cli {
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 
-    #[arg(short, long)]
+    #[arg(short, long, global = true)]
     verbose: bool,
 
-    #[arg(long)]
+    #[arg(long, global = true)]
     config: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Start interactive agent
-    Run {
-        /// First prompt message
-        #[arg()]
-        prompt: Option<String>,
+    /// Start background WebSocket/HTTP gateway server
+    Serve {
+        /// Port to listen on
+        #[arg(short, long, default_value = "9093")]
+        port: u16,
+        /// Bind address
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
     },
-    /// Show configuration
-    Config,
+
+    /// Open full-screen TUI interface
+    Tui,
+
+    /// Execute a one-shot prompt (can pipe via stdin)
+    Run {
+        /// Message to send
+        #[arg(value_name = "MESSAGE", trailing_var_arg = true)]
+        message: Vec<String>,
+
+        /// Continue the last active session
+        #[arg(short, long)]
+        continue_session: bool,
+
+        /// Resume specific session by ID
+        #[arg(long)]
+        session: Option<String>,
+
+        /// Model format: provider/model
+        #[arg(short, long)]
+        model: Option<String>,
+    },
+
+    /// Interactive chat with system prompt history
+    Chat {
+        /// Model format: provider/model
+        #[arg(short, long)]
+        model: Option<String>,
+    },
+
+    /// Manage scheduled cron tasks
+    #[command(subcommand)]
+    Cron(crate::cmd::cron::CronCommand),
+
+    /// List, restore, or delete sessions
+    #[command(subcommand)]
+    Sessions(crate::cmd::sessions::SessionsCommand),
+
+    /// Show registered tools
+    Tools,
+
+    /// List available skills
+    #[command(subcommand)]
+    Skills(crate::cmd::skills::SkillsCommand),
+
+    /// Diagnose environment and configuration
+    Doctor,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
-    // Initialize tracing
     let env_filter = if cli.verbose {
-        "agent_cli=debug,agent_core=debug,agent_tools=debug,agent_llm=debug"
+        "agent=debug,agent_core=debug,agent_tools=debug,agent_llm=debug"
     } else {
-        "agent_cli=info"
+        "agent=info"
     };
 
-    tracing_subscriber::fmt()
-        .with_env_filter(env_filter)
-        .init();
-
-    let config_path = cli.config.unwrap_or_else(|| {
-        dirs::home_dir()
-            .unwrap_or_default()
-            .join(".agent")
-            .join("config.toml")
-    });
+    let _logging_guard =
+        logging::init_file_logging(env_filter, !matches!(cli.command, Commands::Tui))?;
 
     match cli.command {
-        Some(Commands::Run { prompt }) => {
-            run_agent(config_path, prompt).await?;
+        Commands::Tui => agent_tui::run()?,
+        Commands::Serve { port, host } => cmd::serve::run(port, &host, cli.config).await?,
+        Commands::Run {
+            message,
+            continue_session,
+            session,
+            model,
+        } => {
+            cmd::run::run(cli.config, message, continue_session, session, model).await?;
         }
-        Some(Commands::Config) => {
-            show_config(&config_path)?;
-        }
-        None => {
-            run_agent(config_path, None).await?;
-        }
+        Commands::Chat { model } => cmd::chat::run(cli.config, model).await?,
+        Commands::Cron(sub) => cmd::cron::run(sub).await?,
+        Commands::Sessions(sub) => cmd::sessions::run(sub).await?,
+        Commands::Tools => cmd::tools::run()?,
+        Commands::Skills(cmd) => cmd::skills::run(cmd)?,
+        Commands::Doctor => cmd::doctor::run().await?,
     }
 
-    Ok(())
-}
-
-async fn run_agent(config_path: PathBuf, prompt: Option<String>) -> anyhow::Result<()> {
-    println!("Loading config from {:?}", config_path);
-
-    let config = if config_path.exists() {
-        agent_config::AgentConfig::from_file(&config_path)?
-    } else {
-        println!("No config found, using defaults");
-        agent_config::AgentConfig::default()
-    };
-
-    let prompt = prompt.unwrap_or_else(|| {
-        println!("Enter your prompt (or /help for commands):");
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input).ok();
-        input.trim().to_string()
-    });
-
-    println!("Agent: {:?}", prompt);
-    println!("Model: {} ({})", config.model.provider, config.model.name);
-    println!("Max iterations: {}", config.agent.max_iterations);
-
-    // For Phase 1, just show that the agent started
-    // Full tool loop requires registered tools
-    tracing::info!("Agent initialized");
-
-    Ok(())
-}
-
-fn show_config(config_path: &PathBuf) -> anyhow::Result<()> {
-    if config_path.exists() {
-        let config = agent_config::AgentConfig::from_file(config_path)?;
-        println!("Config loaded from {:?}", config_path);
-        println!("Model: {} - {}", config.model.provider, config.model.name);
-        println!("Base URL: {:?}", config.model.base_url);
-    } else {
-        println!("Config file not found at {:?}", config_path);
-        println!("Using defaults:");
-        let config = agent_config::AgentConfig::default();
-        println!("  Model: {} - {}", config.model.provider, config.model.name);
-    }
     Ok(())
 }

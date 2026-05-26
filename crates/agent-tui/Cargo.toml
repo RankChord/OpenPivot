@@ -4,8 +4,29 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+# UI 核心
 ratatui = "0.29"
 crossterm = "0.28"
-tokio.workspace = true
+ctrlc = "3.4"
+
+# 异步支持 (用于后台运行 Agent)
+tokio = { workspace = true, features = ["full"] }
 serde.workspace = true
+
+# 连接 Agent 大脑
+agent-core = { path = "../agent-core" }
+agent-llm = { path = "../agent-llm" }
+agent-config = { path = "../agent-config" }
+agent-tools = { path = "../agent-tools" }
+
+# 内置工具 (必须引入以便注册到 Agent)
+read_file = { package = "tool-read-file", path = "../../tools/read-file" }
+write_file = { package = "tool-write-file", path = "../../tools/write-file" }
+shell_tool = { package = "tool-shell", path = "../../tools/shell" }
+todo_tool = { package = "tool-todo", path = "../../tools/todo-tool" }
+web_search = { package = "tool-web-search", path = "../../tools/web-search" }
+cron_job = { package = "tool-cron-job", path = "../../tools/cron-job" }
+browser_tool = { package = "tool-browser", path = "../../tools/browser" }
+delegate_tool = { package = "tool-delegate", path = "../../tools/delegate" }
+dirs.workspace = true
 tracing.workspace = true

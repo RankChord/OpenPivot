@@ -10,3 +10,10 @@ thiserror.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 chrono.workspace = true
+uuid.workspace = true
+sqlx.workspace = true
+dirs.workspace = true
+agent-kanban = { path = "../agent-kanban" }
+
+[dev-dependencies]
+tempfile = "3"

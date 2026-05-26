@@ -1,7 +1,7 @@
-pub mod provider;
-pub mod manager;
 pub mod builtin;
+pub mod manager;
+pub mod provider;
 
-pub use provider::*;
-pub use manager::*;
 pub use builtin::*;
+pub use manager::*;
+pub use provider::*;

@@ -1,5 +1,5 @@
+use agent_tools::{ProgressUpdate, Tool, ToolDefinition, ToolResult, ToolUseContext};
 use async_trait::async_trait;
-use agent_tools::{Tool, ToolDefinition, ToolUseContext, ToolResult, ProgressUpdate};
 use std::sync::Mutex;
 
 #[derive(Debug)]
@@ -33,7 +33,9 @@ impl TodoTool {
 
 #[async_trait]
 impl Tool for TodoTool {
-    fn definition(&self) -> &ToolDefinition { &self.def }
+    fn definition(&self) -> &ToolDefinition {
+        &self.def
+    }
 
     async fn call(
         &self,
@@ -48,41 +50,76 @@ impl Tool for TodoTool {
             "add" => {
                 let task = input["task"].as_str().unwrap_or("unnamed task");
                 todos.push((task.to_string(), false));
-                ToolResult { ok: true, content: format!("Added: {}", task), error: None }
+                ToolResult {
+                    ok: true,
+                    content: format!("Added: {}", task),
+                    error: None,
+                }
             }
             "complete" => {
                 let task = input["task"].as_str().unwrap_or("");
                 for (t, done) in todos.iter_mut() {
                     if t.contains(task) {
                         *done = true;
-                        return ToolResult { ok: true, content: format!("Completed: {}", t), error: None };
+                        return ToolResult {
+                            ok: true,
+                            content: format!("Completed: {}", t),
+                            error: None,
+                        };
                     }
                 }
-                ToolResult { ok: false, content: String::new(), error: Some(format!("Task not found: {}", task)) }
+                ToolResult {
+                    ok: false,
+                    content: String::new(),
+                    error: Some(format!("Task not found: {}", task)),
+                }
             }
             "list" => {
                 if todos.is_empty() {
-                    ToolResult { ok: true, content: "No todos".into(), error: None }
+                    ToolResult {
+                        ok: true,
+                        content: "No todos".into(),
+                        error: None,
+                    }
                 } else {
-                    let content = todos.iter().enumerate()
-                        .map(|(i, (t, d))| format!("{}. {} {}", i + 1, if *d { "[x]" } else { "[ ]" }, t))
-                        .collect::<Vec<_>>().join("\n");
-                    ToolResult { ok: true, content, error: None }
+                    let content = todos
+                        .iter()
+                        .enumerate()
+                        .map(|(i, (t, d))| {
+                            format!("{}. {} {}", i + 1, if *d { "[x]" } else { "[ ]" }, t)
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    ToolResult {
+                        ok: true,
+                        content,
+                        error: None,
+                    }
                 }
             }
             "clear" => {
                 todos.clear();
-                ToolResult { ok: true, content: "Cleared all todos".into(), error: None }
+                ToolResult {
+                    ok: true,
+                    content: "Cleared all todos".into(),
+                    error: None,
+                }
             }
-            _ => ToolResult { ok: false, content: String::new(), error: Some(format!("Unknown action: {}", action)) }
+            _ => ToolResult {
+                ok: false,
+                content: String::new(),
+                error: Some(format!("Unknown action: {}", action)),
+            },
         }
     }
 
-    fn is_concurrency_safe(&self) -> bool { true }
+    fn is_concurrency_safe(&self) -> bool {
+        true
+    }
 }
 
 #[allow(improper_ctypes_definitions)]
 #[unsafe(no_mangle)]
-pub extern "C" fn create_tool() -> Box<dyn Tool> {
+pub extern "C" fn create_todo_tool() -> Box<dyn Tool> {
     Box::new(TodoTool::new())
 }

@@ -8,13 +8,17 @@ pub struct DiscordAdapter {
 
 impl DiscordAdapter {
     pub fn new(bot_token: &str) -> Self {
-        Self { bot_token: bot_token.into() }
+        Self {
+            bot_token: bot_token.into(),
+        }
     }
 }
 
 #[async_trait]
 impl PlatformAdapter for DiscordAdapter {
-    fn name(&self) -> &str { "discord" }
+    fn name(&self) -> &str {
+        "discord"
+    }
 
     async fn connect(&self) -> Result<(), PlatformError> {
         tracing::info!("Discord adapter connecting...");
@@ -28,7 +32,10 @@ impl PlatformAdapter for DiscordAdapter {
 
     async fn send(&self, channel_id: &str, _message: &str) -> Result<SendResult, PlatformError> {
         // Discord API: POST /channels/{channel_id}/messages
-        let _url = format!("https://discord.com/api/v10/channels/{}/messages", channel_id);
+        let _url = format!(
+            "https://discord.com/api/v10/channels/{}/messages",
+            channel_id
+        );
 
         tracing::info!("Sending Discord message to {}", channel_id);
 

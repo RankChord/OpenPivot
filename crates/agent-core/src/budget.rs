@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU32, AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 #[derive(Debug)]
 pub struct IterationBudget {

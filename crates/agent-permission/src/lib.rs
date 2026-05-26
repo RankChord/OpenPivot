@@ -1,90 +1,37 @@
-use std::path::{Path, PathBuf};
-use thiserror::Error;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
-#[derive(Debug, Clone)]
-pub struct PathPolicy {
-    pub always_allow: Vec<PathBuf>,
-    pub always_deny: Vec<PathBuf>,
-    pub allow_read: Vec<PathBuf>,
-    pub allow_write: Vec<PathBuf>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PermissionPolicy {
+    /// Whether to require user approval for tools
+    #[serde(default)]
+    pub auto_approve_tools: bool,
+
+    /// Allowed tool names
+    #[serde(default)]
+    pub allowed_tools: Vec<String>,
+
+    /// Allowed working directories
+    #[serde(default)]
+    pub allowed_dirs: Vec<PathBuf>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum FileMode {
-    Read,
-    Write,
-    Execute,
-    Delete,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum PermissionDecision {
-    Allow,
-    Deny,
-    Ask,
-}
-
-#[derive(Debug, Error)]
-pub enum PermissionError {
-    #[error("path not allowed: {0}")]
-    PathDenied(PathBuf),
-}
-
-impl PathPolicy {
-    pub fn new(workspace: &Path) -> Self {
+impl Default for PermissionPolicy {
+    fn default() -> Self {
         Self {
-            always_allow: vec![],
-            always_deny: vec![
-                PathBuf::from("/etc"),
-                PathBuf::from("/usr"),
-                #[cfg(unix)]
-                dirs::home_dir().unwrap_or_default(),
-            ],
-            allow_read: vec![workspace.to_path_buf()],
-            allow_write: vec![workspace.to_path_buf()],
+            auto_approve_tools: false,
+            allowed_tools: vec!["read_file".into(), "todo".into(), "web_search".into()],
+            allowed_dirs: vec![std::env::current_dir().unwrap_or_default()],
         }
     }
+}
 
-    pub fn check(&self, path: &Path, operation: FileMode) -> PermissionDecision {
-        // 1. Check explicit denies first
-        if self.is_denied(path) {
-            return PermissionDecision::Deny;
-        }
-
-        // 2. Check explicit allows
-        if self.is_always_allowed(path) {
-            return PermissionDecision::Allow;
-        }
-
-        // 3. Check operation-specific permissions
-        match operation {
-            FileMode::Read => {
-                if self.is_in_list(path, &self.allow_read) {
-                    PermissionDecision::Allow
-                } else {
-                    PermissionDecision::Ask
-                }
-            }
-            FileMode::Write | FileMode::Delete => {
-                if self.is_in_list(path, &self.allow_write) {
-                    PermissionDecision::Allow
-                } else {
-                    PermissionDecision::Ask
-                }
-            }
-            FileMode::Execute => PermissionDecision::Ask,
-        }
+pub fn check_permission(policy: &PermissionPolicy, tool_name: &str, _work_dir: &PathBuf) -> bool {
+    // 1. If auto approve, return true
+    if policy.auto_approve_tools {
+        return true;
     }
 
-    fn is_denied(&self, path: &Path) -> bool {
-        self.always_deny.iter().any(|d| path.starts_with(d))
-    }
-
-    fn is_always_allowed(&self, path: &Path) -> bool {
-        self.always_allow.iter().any(|a| path.starts_with(a))
-    }
-
-    fn is_in_list(&self, path: &Path, list: &[PathBuf]) -> bool {
-        list.iter().any(|dir| path.starts_with(dir))
-    }
+    // 2. Explicitly allowed list
+    policy.allowed_tools.contains(&tool_name.to_string())
 }

@@ -5,7 +5,7 @@ use std::process::Stdio;
 use std::sync::atomic::{AtomicU32, Ordering};
 use tokio::process::Command;
 use tokio::sync::Mutex;
-use tokio::time::{interval, Duration};
+use tokio::time::{Duration, interval};
 
 pub struct WorkerProcess {
     pub plugin_id: String,
@@ -24,14 +24,16 @@ impl WorkerProcess {
             restart_count: AtomicU32::new(0),
         }
     }
-    
-    pub fn socket_path(&self) -> &Path { &self.socket_path }
-    
+
+    pub fn socket_path(&self) -> &Path {
+        &self.socket_path
+    }
+
     /// Spawn worker process
     pub async fn spawn(&self, _max_restarts: u32) -> Result<(), String> {
         let lib_path = self.lib_path.clone();
         let socket_path = self.socket_path.clone();
-        
+
         // The worker binary is `agent-worker-bin` which loads the plugin dylib
         let mut child = Command::new("agent-worker-bin")
             .arg("--plugin")
@@ -42,23 +44,27 @@ impl WorkerProcess {
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| format!("Failed to spawn worker: {}", e))?;
-        
+
         tokio::spawn(async move {
             let status = child.wait().await;
             tracing::info!("Worker exited: {:?}", status);
         });
-        
+
         // Wait for socket to be ready
         tokio::time::sleep(Duration::from_millis(200)).await;
-        
-        tracing::info!("Worker {} started on {:?}", self.plugin_id, self.socket_path);
+
+        tracing::info!(
+            "Worker {} started on {:?}",
+            self.plugin_id,
+            self.socket_path
+        );
         Ok(())
     }
-    
+
     pub fn restart_count(&self) -> u32 {
         self.restart_count.load(Ordering::Relaxed)
     }
-    
+
     pub fn increment_restart(&self) {
         self.restart_count.fetch_add(1, Ordering::Relaxed);
     }
@@ -76,14 +82,14 @@ impl WorkerPool {
             max_restarts,
         }
     }
-    
+
     pub async fn add_worker(&self, plugin_id: &str, lib_path: &Path) -> Result<(), String> {
         let worker = WorkerProcess::new(plugin_id, lib_path);
         worker.spawn(self.max_restarts).await?;
         self.workers.lock().await.push(worker);
         Ok(())
     }
-    
+
     pub async fn health_check_loop(&self, interval_secs: u64) {
         let mut interval = interval(Duration::from_secs(interval_secs));
         loop {
@@ -91,7 +97,7 @@ impl WorkerPool {
             self.check_health().await;
         }
     }
-    
+
     async fn check_health(&self) {
         // Simple health check: try connecting to each worker's socket
         // In production, would use a proper heartbeat protocol
@@ -99,11 +105,17 @@ impl WorkerPool {
         for worker in workers.iter() {
             if !std::fs::exists(&worker.socket_path).unwrap_or(false) {
                 if worker.restart_count() < self.max_restarts {
-                    tracing::warn!("Worker {} not responding, restarting (attempt {})", 
-                        worker.plugin_id, worker.restart_count() + 1);
+                    tracing::warn!(
+                        "Worker {} not responding, restarting (attempt {})",
+                        worker.plugin_id,
+                        worker.restart_count() + 1
+                    );
                     // Restart logic would go here
                 } else {
-                    tracing::error!("Worker {} exceeded max restarts, disabling", worker.plugin_id);
+                    tracing::error!(
+                        "Worker {} exceeded max restarts, disabling",
+                        worker.plugin_id
+                    );
                 }
             }
         }

@@ -1,0 +1,70 @@
+<h2>Agent 系统建设方向</h2>
+<p class="subtitle">当前项目要从失败原型变成优秀 Agent 服务，先要确定第一阶段重心。你可以点击一个方向，也可以直接在终端补充你的判断。</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">A. 核心底座优先</div>
+        <div class="mockup-body">
+          <div class="mock-nav">策略内核 | 事件总线 | 模型适配 | 工具运行时</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+            <div class="placeholder">可靠 Agent Loop</div>
+            <div class="placeholder">权限与沙箱</div>
+            <div class="placeholder">会话/事件存储</div>
+            <div class="placeholder">多模型 Provider</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>先把地基打稳</h3>
+      <p>优先修核心循环、权限、模型适配、持久化、测试和 CLI 契约，再做高级交互体验。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">B. 产品交互优先</div>
+        <div class="mockup-body">
+          <div class="mock-nav">TUI 工作台 | 时间线 | Diff | 工具 | 任务</div>
+          <div style="display:flex;gap:12px;margin-top:12px">
+            <div class="mock-sidebar">会话<br>计划<br>子 Agent<br>文件</div>
+            <div class="mock-content">对话 + 工具执行 + 权限确认 + 结果审阅</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>先做一流操作者体验</h3>
+      <p>参考 Claude Code / OpenCode 的交互优势，先搭一个好用的 CLI/TUI 工作台，再逐步替换内部实现。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">C. 服务平台优先</div>
+        <div class="mockup-body">
+          <div class="mock-nav">HTTP API | Worker | 队列 | 多 Agent | 插件</div>
+          <div style="display:grid;grid-template-columns:1.1fr .9fr;gap:12px;margin-top:12px">
+            <div class="placeholder">Agent 编排服务</div>
+            <div class="placeholder">客户端 SDK</div>
+            <div class="placeholder">后台任务</div>
+            <div class="placeholder">平台集成</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>先做可部署服务</h3>
+      <p>优先做 API server、worker 生命周期、任务队列、插件、多会话并发执行，而不是先抛光交互界面。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>我的建议</h3>
+  <p>第一阶段选 <strong>A：核心底座优先</strong>。当前代码不是“差一点 UI”，而是核心 loop、权限、provider、session、测试都不稳。先稳住底座，再从 B 和 C 吸收优秀能力。</p>
+</div>

@@ -38,6 +38,7 @@ impl Default for AgentConfig {
                 verbose: false,
                 colors: true,
             },
+            permissions: PermissionPolicy::default(),
         }
     }
 }
@@ -48,18 +49,18 @@ impl AgentConfig {
         let loaded: AgentConfig = toml::from_str(&content)?;
         Ok(loaded)
     }
-    
+
     pub fn agent_home(&self) -> PathBuf {
-        self.paths.home.clone().unwrap_or_else(|| {
-            dirs::home_dir()
-                .unwrap_or_default()
-                .join(".agent")
-        })
+        self.paths
+            .home
+            .clone()
+            .unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join(".agent"))
     }
-    
+
     pub fn workspace(&self) -> PathBuf {
-        self.paths.workspace.clone().unwrap_or_else(|| {
-            std::env::current_dir().unwrap_or_default()
-        })
+        self.paths
+            .workspace
+            .clone()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
     }
 }

@@ -1,0 +1,18 @@
+[package]
+name = "tool-cron-job"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "cron_job_tool"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+agent-tools = { path = "../../crates/agent-tools" }
+agent-cron = { path = "../../crates/agent-cron" }
+dirs.workspace = true

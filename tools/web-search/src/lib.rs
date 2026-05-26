@@ -1,5 +1,13 @@
+use agent_tools::{ProgressUpdate, Tool, ToolDefinition, ToolResult, ToolUseContext};
 use async_trait::async_trait;
-use agent_tools::{Tool, ToolDefinition, ToolUseContext, ToolResult, ProgressUpdate};
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+struct StaticSearchResult {
+    title: String,
+    url: String,
+    snippet: String,
+}
 
 #[derive(Debug)]
 pub struct WebSearchTool {
@@ -30,7 +38,9 @@ impl WebSearchTool {
 
 #[async_trait]
 impl Tool for WebSearchTool {
-    fn definition(&self) -> &ToolDefinition { &self.def }
+    fn definition(&self) -> &ToolDefinition {
+        &self.def
+    }
 
     async fn call(
         &self,
@@ -40,29 +50,64 @@ impl Tool for WebSearchTool {
     ) -> ToolResult {
         let query = match input["query"].as_str() {
             Some(q) => q,
-            None => return ToolResult {
-                ok: false,
-                content: String::new(),
-                error: Some("Missing required parameter: query".into()),
-            },
+            None => {
+                return ToolResult {
+                    ok: false,
+                    content: String::new(),
+                    error: Some("Missing required parameter: query".into()),
+                };
+            }
         };
 
-        let max_results = input["max_results"].as_u64().unwrap_or(5);
+        if let Ok(raw_results) = std::env::var("AGENT_WEB_SEARCH_STATIC_RESULTS") {
+            return match serde_json::from_str::<Vec<StaticSearchResult>>(&raw_results) {
+                Ok(results) => ToolResult {
+                    ok: true,
+                    content: format_static_results(query, &results),
+                    error: None,
+                },
+                Err(error) => ToolResult {
+                    ok: false,
+                    content: String::new(),
+                    error: Some(format!(
+                        "Invalid AGENT_WEB_SEARCH_STATIC_RESULTS: {}",
+                        error
+                    )),
+                },
+            };
+        }
 
-        let result = format!(
-            "Search query: \"{}\"\nMax results: {}\n\nNote: This is a stub implementation.\nTo enable real search, configure a search API provider.",
-            query, max_results
-        );
-
-        ToolResult { ok: true, content: result, error: None }
+        ToolResult {
+            ok: false,
+            content: String::new(),
+            error: Some("web_search is not configured with a real search provider".into()),
+        }
     }
 
-    fn is_concurrency_safe(&self) -> bool { true }
-    fn is_read_only(&self) -> bool { true }
+    fn is_concurrency_safe(&self) -> bool {
+        true
+    }
+    fn is_read_only(&self) -> bool {
+        true
+    }
+}
+
+fn format_static_results(query: &str, results: &[StaticSearchResult]) -> String {
+    let mut output = format!("Search query: {}\n", query);
+    for (index, result) in results.iter().enumerate() {
+        output.push_str(&format!(
+            "\n{}. {}\n{}\n{}\n",
+            index + 1,
+            result.title,
+            result.url,
+            result.snippet
+        ));
+    }
+    output
 }
 
 #[allow(improper_ctypes_definitions)]
 #[unsafe(no_mangle)]
-pub extern "C" fn create_tool() -> Box<dyn Tool> {
+pub extern "C" fn create_web_search_tool() -> Box<dyn Tool> {
     Box::new(WebSearchTool::new())
 }

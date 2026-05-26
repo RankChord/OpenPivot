@@ -8,7 +8,11 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::Mutex;
 
-type RequestHandler = Box<dyn Fn(serde_json::Value) -> BoxFuture<'static, Result<serde_json::Value, String>> + Send + Sync>;
+type RequestHandler = Box<
+    dyn Fn(serde_json::Value) -> BoxFuture<'static, Result<serde_json::Value, String>>
+        + Send
+        + Sync,
+>;
 
 pub type BoxFuture<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
 
@@ -21,13 +25,13 @@ impl GatewayServer {
     pub fn new(socket_path: &Path) -> Self {
         // Remove stale socket
         let _ = std::fs::remove_file(socket_path);
-        
+
         Self {
             socket_path: socket_path.into(),
             handlers: Arc::new(Mutex::new(HashMap::new())),
         }
     }
-    
+
     pub fn register_handler<F, Fut>(&mut self, method: &str, handler: F)
     where
         F: Fn(serde_json::Value) -> Fut + Send + Sync + 'static,
@@ -37,22 +41,25 @@ impl GatewayServer {
             let fut = handler(params);
             Box::pin(fut)
         });
-        self.handlers.try_lock().unwrap().insert(method.into(), handler);
+        self.handlers
+            .try_lock()
+            .unwrap()
+            .insert(method.into(), handler);
     }
-    
+
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let listener = UnixListener::bind(&self.socket_path)?;
         let handlers = self.handlers.clone();
-        
+
         tracing::info!("Gateway listening on {:?}", self.socket_path);
-        
+
         let mut conn_id = 0u64;
         loop {
             let (stream, _) = listener.accept().await?;
             let handlers = handlers.clone();
             let id = conn_id;
             conn_id += 1;
-            
+
             tokio::spawn(async move {
                 if let Err(e) = handle_connection(stream, handlers, id).await {
                     tracing::error!("Connection {} error: {}", id, e);
@@ -70,7 +77,7 @@ async fn handle_connection(
     let (reader, mut writer) = stream.into_split();
     let mut reader = BufReader::new(reader);
     let mut line = String::new();
-    
+
     loop {
         line.clear();
         let bytes = reader.read_line(&mut line).await?;
@@ -78,10 +85,12 @@ async fn handle_connection(
             tracing::debug!("Connection {} closed", conn_id);
             break;
         }
-        
+
         let trimmed = line.trim();
-        if trimmed.is_empty() { continue; }
-        
+        if trimmed.is_empty() {
+            continue;
+        }
+
         match serde_json::from_str::<JsonRpcRequest>(trimmed) {
             Ok(req) => {
                 let handlers = handlers.lock().await;
@@ -91,22 +100,30 @@ async fn handle_connection(
                         Err(e) => JsonRpcResponse::error(req.id, error_codes::INTERNAL_ERROR, &e),
                     }
                 } else {
-                    JsonRpcResponse::error(req.id, error_codes::METHOD_NOT_FOUND, &format!("Unknown method: {}", req.method))
+                    JsonRpcResponse::error(
+                        req.id,
+                        error_codes::METHOD_NOT_FOUND,
+                        &format!("Unknown method: {}", req.method),
+                    )
                 };
-                
+
                 let json = serde_json::to_string(&response)?;
                 writer.write_all(json.as_bytes()).await?;
                 writer.write_all(b"\n").await?;
                 writer.flush().await?;
             }
             Err(e) => {
-                let error = JsonRpcResponse::error(0, error_codes::PARSE_ERROR, &format!("Invalid JSON: {}", e));
+                let error = JsonRpcResponse::error(
+                    0,
+                    error_codes::PARSE_ERROR,
+                    &format!("Invalid JSON: {}", e),
+                );
                 let json = serde_json::to_string(&error)?;
                 writer.write_all(json.as_bytes()).await?;
                 writer.write_all(b"\n").await?;
             }
         }
     }
-    
+
     Ok(())
 }

@@ -58,7 +58,7 @@ impl JsonRpcResponse {
             error: None,
         }
     }
-    
+
     pub fn error(id: u64, code: i64, message: &str) -> Self {
         Self {
             jsonrpc: "2.0".into(),

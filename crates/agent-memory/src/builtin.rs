@@ -1,16 +1,10 @@
 //! Built-in memory: file-based (MEMORY.md, USER.md, SOUL.md, AGENTS.md)
 
-use crate::provider::{MemoryProvider, MemoryError};
-use std::path::{Path, PathBuf};
+use crate::provider::{MemoryError, MemoryProvider};
 use async_trait::async_trait;
+use std::path::{Path, PathBuf};
 
-pub const MEMORY_FILES: &[&str] = &[
-    "MEMORY.md",
-    "USER.md",
-    "SOUL.md",
-    "AGENTS.md",
-    "TOOLS.md",
-];
+pub const MEMORY_FILES: &[&str] = &["MEMORY.md", "USER.md", "SOUL.md", "AGENTS.md", "TOOLS.md"];
 
 #[derive(Debug)]
 pub struct BuiltinMemory {
@@ -59,7 +53,9 @@ impl BuiltinMemory {
 
 #[async_trait]
 impl MemoryProvider for BuiltinMemory {
-    fn name(&self) -> &str { "builtin" }
+    fn name(&self) -> &str {
+        "builtin"
+    }
 
     async fn initialize(&mut self, session_id: &str, workspace: &Path) -> Result<(), MemoryError> {
         self.session_id = Some(session_id.into());
@@ -69,7 +65,9 @@ impl MemoryProvider for BuiltinMemory {
         for file in MEMORY_FILES {
             let path = self.workspace.join(file);
             if !tokio::fs::try_exists(&path).await.unwrap_or(false) {
-                tokio::fs::write(&path, format!("# {}\n\n", file)).await.ok();
+                tokio::fs::write(&path, format!("# {}\n\n", file))
+                    .await
+                    .ok();
             }
         }
         Ok(())
@@ -95,7 +93,10 @@ impl MemoryProvider for BuiltinMemory {
         if content.is_empty() {
             Ok(String::new())
         } else {
-            Ok(format!("<memory-context>\n{}\n</memory-context>\n", content))
+            Ok(format!(
+                "<memory-context>\n{}\n</memory-context>\n",
+                content
+            ))
         }
     }
 

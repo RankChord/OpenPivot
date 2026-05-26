@@ -1,5 +1,7 @@
+use agent_tools::{
+    InterruptPolicy, ProgressUpdate, Tool, ToolDefinition, ToolResult, ToolUseContext,
+};
 use async_trait::async_trait;
-use agent_tools::{Tool, ToolDefinition, ToolUseContext, ToolResult, ProgressUpdate, InterruptPolicy};
 
 #[derive(Debug)]
 pub struct ShellTool {
@@ -30,7 +32,9 @@ impl ShellTool {
 
 #[async_trait]
 impl Tool for ShellTool {
-    fn definition(&self) -> &ToolDefinition { &self.def }
+    fn definition(&self) -> &ToolDefinition {
+        &self.def
+    }
 
     async fn call(
         &self,
@@ -40,11 +44,13 @@ impl Tool for ShellTool {
     ) -> ToolResult {
         let command = match input["command"].as_str() {
             Some(c) => c,
-            None => return ToolResult {
-                ok: false,
-                content: String::new(),
-                error: Some("Missing required parameter: command".into()),
-            },
+            None => {
+                return ToolResult {
+                    ok: false,
+                    content: String::new(),
+                    error: Some("Missing required parameter: command".into()),
+                };
+            }
         };
 
         let timeout_secs = input["timeout_seconds"].as_u64().unwrap_or(60);
@@ -52,8 +58,8 @@ impl Tool for ShellTool {
 
         #[cfg(unix)]
         {
-            use tokio::process::Command;
             use std::time::Duration;
+            use tokio::process::Command;
 
             let output = tokio::time::timeout(
                 Duration::from_secs(timeout_secs),
@@ -62,7 +68,8 @@ impl Tool for ShellTool {
                     .arg(command)
                     .current_dir(&workspace_dir)
                     .output(),
-            ).await;
+            )
+            .await;
 
             match output {
                 Ok(Ok(out)) => {
@@ -70,13 +77,15 @@ impl Tool for ShellTool {
                     let stderr = String::from_utf8_lossy(&out.stderr);
                     let mut result = String::new();
                     if out.status.success() {
-                        result.push_str(&format!("Exit code: {}\n", out.status.code().unwrap_or(-1)));
+                        result
+                            .push_str(&format!("Exit code: {}\n", out.status.code().unwrap_or(-1)));
                         if !stdout.trim().is_empty() {
                             result.push_str("=== stdout ===\n");
                             result.push_str(&stdout);
                         }
                     } else {
-                        result.push_str(&format!("Exit code: {}\n", out.status.code().unwrap_or(-1)));
+                        result
+                            .push_str(&format!("Exit code: {}\n", out.status.code().unwrap_or(-1)));
                         if !stderr.trim().is_empty() {
                             result.push_str(&format!("=== stderr ===\n{}", stderr));
                         }
@@ -87,7 +96,11 @@ impl Tool for ShellTool {
                     ToolResult {
                         ok: out.status.success(),
                         content: result,
-                        error: if !out.status.success() { Some("Command failed".into()) } else { None },
+                        error: if !out.status.success() {
+                            Some("Command failed".into())
+                        } else {
+                            None
+                        },
                     }
                 }
                 Ok(Err(e)) => ToolResult {
@@ -114,14 +127,37 @@ impl Tool for ShellTool {
         }
     }
 
-    fn is_concurrency_safe(&self) -> bool { false }
-    fn is_read_only(&self) -> bool { false }
-    fn is_destructive(&self) -> bool { true }
-    fn interrupt_behavior(&self) -> InterruptPolicy { InterruptPolicy::Cancel }
+    fn is_concurrency_safe(&self) -> bool {
+        false
+    }
+    fn is_read_only(&self) -> bool {
+        false
+    }
+    fn is_input_read_only(&self, input: &serde_json::Value) -> bool {
+        input["command"]
+            .as_str()
+            .map(is_read_only_shell_command)
+            .unwrap_or(false)
+    }
+    fn is_destructive(&self) -> bool {
+        true
+    }
+    fn interrupt_behavior(&self) -> InterruptPolicy {
+        InterruptPolicy::Cancel
+    }
+}
+
+fn is_read_only_shell_command(command: &str) -> bool {
+    let command = command.trim();
+    command == "pwd"
+        || command == "find . -maxdepth 1 -type f"
+        || command == "ls"
+        || command == "ls ."
+        || command.starts_with("ls ")
 }
 
 #[allow(improper_ctypes_definitions)]
 #[unsafe(no_mangle)]
-pub extern "C" fn create_tool() -> Box<dyn Tool> {
+pub extern "C" fn create_shell_tool() -> Box<dyn Tool> {
     Box::new(ShellTool::new())
 }

@@ -8,13 +8,17 @@ pub struct TelegramAdapter {
 
 impl TelegramAdapter {
     pub fn new(bot_token: &str) -> Self {
-        Self { bot_token: bot_token.into() }
+        Self {
+            bot_token: bot_token.into(),
+        }
     }
 }
 
 #[async_trait]
 impl PlatformAdapter for TelegramAdapter {
-    fn name(&self) -> &str { "telegram" }
+    fn name(&self) -> &str {
+        "telegram"
+    }
 
     async fn connect(&self) -> Result<(), PlatformError> {
         tracing::info!("Telegram adapter connecting...");
@@ -38,9 +42,7 @@ impl PlatformAdapter for TelegramAdapter {
         // Placeholder: in real impl, use reqwest to send
         tracing::info!("Sending Telegram message to {}", chat_id);
 
-        Ok(SendResult {
-            message_id: None,
-        })
+        Ok(SendResult { message_id: None })
     }
 
     async fn start_listening(

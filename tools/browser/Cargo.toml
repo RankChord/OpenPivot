@@ -1,0 +1,15 @@
+[package]
+name = "tool-browser"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "browser_tool"
+
+[dependencies]
+agent-tools = { path = "../../crates/agent-tools" }
+async-trait.workspace = true
+reqwest = { version = "0.12", features = ["blocking"] }
+serde_json.workspace = true
+scraper = "0.18"

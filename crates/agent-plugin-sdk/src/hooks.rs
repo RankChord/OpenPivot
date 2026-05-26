@@ -40,28 +40,31 @@ impl HookRegistry {
             hooks: HashMap::new(),
         }
     }
-    
+
     pub fn register(&mut self, plugin_id: &str, point: HookPoint, func: HookFn) {
-        self.hooks.entry(point).or_insert_with(Vec::new)
+        self.hooks
+            .entry(point)
+            .or_insert_with(Vec::new)
             .push((plugin_id.into(), func));
     }
-    
+
     pub fn execute(&self, point: HookPoint, ctx: &HookContext<'_>) -> Result<(), HookError> {
         if let Some(handlers) = self.hooks.get(&point) {
             for (id, func) in handlers {
-                func(ctx).map_err(|e| HookError::ExecutionError(
-                    format!("Hook {} failed: {}", id, e)
-                ))?;
+                func(ctx)
+                    .map_err(|e| HookError::ExecutionError(format!("Hook {} failed: {}", id, e)))?;
             }
         }
         Ok(())
     }
-    
+
     pub fn is_empty(&self) -> bool {
         self.hooks.is_empty()
     }
 }
 
 impl Default for HookRegistry {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }

@@ -1,7 +1,7 @@
+pub mod discord;
 pub mod platform;
 pub mod telegram;
-pub mod discord;
 
+pub use discord::*;
 pub use platform::*;
 pub use telegram::*;
-pub use discord::*;

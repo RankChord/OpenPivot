@@ -59,6 +59,8 @@ pub enum LlmError {
     ContextTooLarge,
     #[error("Request timeout")]
     Timeout,
+    #[error("Unsupported provider: {0}")]
+    UnsupportedProvider(String),
     #[error("Network error: {0}")]
     NetworkError(#[from] reqwest::Error),
 }

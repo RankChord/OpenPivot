@@ -5,17 +5,86 @@ use serde::{Deserialize, Serialize};
 pub struct CronJob {
     pub id: String,
     pub name: String,
+    pub description: String,
     pub schedule: Schedule,
-    pub prompt: String,
+    pub payload_kind: PayloadKind,
+    pub payload_json: serde_json::Value,
     pub enabled: bool,
-    pub last_run: Option<DateTime<Utc>>,
-    pub next_run: Option<DateTime<Utc>>,
-    /// Model override for this job
-    pub model_override: Option<String>,
-    /// Skills to load for this job
-    pub skills: Vec<String>,
-    /// Whether this runs without an agent (script only)
-    pub no_agent: bool,
+    pub missed_run_policy: MissedRunPolicy,
+    pub last_run_at: Option<DateTime<Utc>>,
+    pub next_run_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewCronJob {
+    pub name: String,
+    pub description: String,
+    pub schedule: Schedule,
+    pub payload_kind: PayloadKind,
+    pub payload_json: serde_json::Value,
+    pub enabled: bool,
+    pub missed_run_policy: MissedRunPolicy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadKind {
+    AgentPrompt,
+    ShellCommand,
+}
+
+impl PayloadKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::AgentPrompt => "agent_prompt",
+            Self::ShellCommand => "shell_command",
+        }
+    }
+}
+
+impl TryFrom<&str> for PayloadKind {
+    type Error = ScheduleError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "agent_prompt" => Ok(Self::AgentPrompt),
+            "shell_command" => Ok(Self::ShellCommand),
+            other => Err(ScheduleError::InvalidPayloadKind(other.to_string())),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MissedRunPolicy {
+    Skip,
+    RunOnce,
+    CatchUp,
+}
+
+impl MissedRunPolicy {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Skip => "skip",
+            Self::RunOnce => "run_once",
+            Self::CatchUp => "catch_up",
+        }
+    }
+}
+
+impl TryFrom<&str> for MissedRunPolicy {
+    type Error = ScheduleError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "skip" => Ok(Self::Skip),
+            "run_once" => Ok(Self::RunOnce),
+            "catch_up" => Ok(Self::CatchUp),
+            other => Err(ScheduleError::InvalidMissedRunPolicy(other.to_string())),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,9 +126,11 @@ impl Schedule {
                     None
                 }
             }
-            Schedule::Every(_) | Schedule::Cron(_) => {
-                Some(after + chrono::Duration::hours(1))
-            }
+            Schedule::Every(value) => parse_every_interval(value)
+                .and_then(|duration| chrono::Duration::from_std(duration).ok())
+                .map(|duration| after + duration)
+                .or_else(|| Some(after + chrono::Duration::hours(1))),
+            Schedule::Cron(_) => Some(after + chrono::Duration::hours(1)),
         }
     }
 }
@@ -80,6 +151,12 @@ fn parse_duration(input: &str) -> Result<std::time::Duration, ()> {
     }
 }
 
+fn parse_every_interval(input: &str) -> Option<std::time::Duration> {
+    input
+        .strip_prefix("every ")
+        .and_then(|rest| parse_duration(rest).ok())
+}
+
 fn is_cron_expression(input: &str) -> bool {
     let parts: Vec<&str> = input.split_whitespace().collect();
     parts.len() == 5
@@ -93,4 +170,8 @@ fn is_cron_expression(input: &str) -> bool {
 pub enum ScheduleError {
     #[error("invalid schedule format: {0}")]
     InvalidFormat(String),
+    #[error("invalid payload kind: {0}")]
+    InvalidPayloadKind(String),
+    #[error("invalid missed-run policy: {0}")]
+    InvalidMissedRunPolicy(String),
 }

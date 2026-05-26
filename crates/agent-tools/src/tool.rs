@@ -16,6 +16,8 @@ pub struct ToolDefinition {
 pub struct PermissionCheck {
     pub tool_name: String,
     pub input: serde_json::Value,
+    pub is_read_only: bool,
+    pub is_destructive: bool,
 }
 
 /// Permission decision
@@ -68,12 +70,25 @@ pub trait Tool: Send + Sync + std::fmt::Debug {
         on_progress: &dyn Fn(ProgressUpdate),
     ) -> ToolResult;
 
-    fn is_concurrency_safe(&self) -> bool { false }
-    fn is_read_only(&self) -> bool { false }
-    fn is_destructive(&self) -> bool { false }
-    fn interrupt_behavior(&self) -> InterruptPolicy { InterruptPolicy::Block }
-    fn requirements_check(&self) -> bool { true }
-    
+    fn is_concurrency_safe(&self) -> bool {
+        false
+    }
+    fn is_read_only(&self) -> bool {
+        false
+    }
+    fn is_input_read_only(&self, _input: &serde_json::Value) -> bool {
+        self.is_read_only()
+    }
+    fn is_destructive(&self) -> bool {
+        false
+    }
+    fn interrupt_behavior(&self) -> InterruptPolicy {
+        InterruptPolicy::Block
+    }
+    fn requirements_check(&self) -> bool {
+        true
+    }
+
     /// Tool-level permission check (default: defer to general permission system)
     async fn check_permissions(
         &self,
@@ -82,7 +97,7 @@ pub trait Tool: Send + Sync + std::fmt::Debug {
     ) -> PermissionResult {
         PermissionResult::Allow
     }
-    
+
     /// Dynamic prompt description based on context
     async fn prompt_description(&self, _ctx: &ToolPromptContext<'_>) -> String {
         self.definition().description.clone()

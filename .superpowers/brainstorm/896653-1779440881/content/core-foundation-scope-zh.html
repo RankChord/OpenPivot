@@ -1,0 +1,46 @@
+<h2>第一阶段：核心底座优先</h2>
+<p class="subtitle">建议不要一口气重做“完美 Agent 系统”。第一阶段目标是把当前原型修成可继续扩展的稳定内核。</p>
+
+<div class="mockup">
+  <div class="mockup-header">推荐的核心架构边界</div>
+  <div class="mockup-body">
+    <div class="mock-nav">CLI/TUI/API 入口</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">
+      <div class="placeholder">Agent Runtime<br><small>loop / events / budget</small></div>
+      <div class="placeholder">Policy Kernel<br><small>permissions / approvals</small></div>
+      <div class="placeholder">LLM Layer<br><small>OpenAI-compatible first</small></div>
+      <div class="placeholder">Tool Runtime<br><small>schemas / execution / results</small></div>
+      <div class="placeholder">Session Store<br><small>messages / tool events</small></div>
+      <div class="placeholder">Test Harness<br><small>mock LLM / mock tools</small></div>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>最小可用核心</h3>
+      <p>修复 build/test、Agent Loop、OpenAI-compatible provider、权限检查、基础 session。最快形成可靠底座。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>核心 + 基础 TUI</h3>
+      <p>在 A 的基础上重做一个简洁但专业的 TUI 工作台。更有产品感，但范围更大。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>核心 + 服务 API</h3>
+      <p>在 A 的基础上把 agent runtime 作为 HTTP service 暴露。适合后续接 Web、平台和 worker。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>我的建议</h3>
+  <p>选择 <strong>A：最小可用核心</strong> 作为第一阶段。当前失败的根因在底层不可靠，先把核心闭环跑通，再做 TUI/API。</p>
+</div>

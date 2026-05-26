@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use thiserror::Error;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformMessage {
@@ -26,16 +26,16 @@ pub enum PlatformError {
 #[async_trait]
 pub trait PlatformAdapter: Send + Sync {
     fn name(&self) -> &str;
-    
+
     async fn connect(&self) -> Result<(), PlatformError>;
     async fn disconnect(&self) -> Result<(), PlatformError>;
-    
+
     async fn send(&self, chat_id: &str, message: &str) -> Result<SendResult, PlatformError>;
-    
+
     async fn start_listening(
         &self,
         handler: Box<dyn Fn(PlatformMessage) + Send + Sync>,
     ) -> Result<(), PlatformError>;
-    
+
     fn show_typing_indicator(&self, _chat_id: &str) {}
 }

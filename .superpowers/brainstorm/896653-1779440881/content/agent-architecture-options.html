@@ -1,0 +1,70 @@
+<h2>Agent System Direction</h2>
+<p class="subtitle">Three viable ways to turn the current prototype into a serious agent service. Click the direction that best matches your intent, then reply in terminal with any corrections.</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">A. Core-First Foundation</div>
+        <div class="mockup-body">
+          <div class="mock-nav">Policy Kernel | Event Bus | Provider Layer | Tool Runtime</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+            <div class="placeholder">Deterministic Agent Loop</div>
+            <div class="placeholder">Permission + Sandbox</div>
+            <div class="placeholder">Session/Event Store</div>
+            <div class="placeholder">Provider Adapters</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Stabilize the foundation first</h3>
+      <p>Fix core loop, permissions, model adapters, persistence, tests, and CLI contract before adding advanced UX.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">B. Product Shell First</div>
+        <div class="mockup-body">
+          <div class="mock-nav">TUI Workbench | Timeline | Diff | Tools | Tasks</div>
+          <div style="display:flex;gap:12px;margin-top:12px">
+            <div class="mock-sidebar">Sessions<br>Plans<br>Agents<br>Files</div>
+            <div class="mock-content">Conversation + tool activity + approvals</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Build the operator experience first</h3>
+      <p>Create a polished TUI/CLI workbench inspired by Claude Code/OpenCode, then connect internals behind it.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">C. Service Platform First</div>
+        <div class="mockup-body">
+          <div class="mock-nav">HTTP API | Workers | Queue | Multi-Agent | Plugins</div>
+          <div style="display:grid;grid-template-columns:1.1fr .9fr;gap:12px;margin-top:12px">
+            <div class="placeholder">Agent Orchestrator Service</div>
+            <div class="placeholder">Client SDKs</div>
+            <div class="placeholder">Background Tasks</div>
+            <div class="placeholder">Integrations</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Make it a daemon/service first</h3>
+      <p>Prioritize API server, worker lifecycle, queueing, plugins, and multi-session execution over interactive polish.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>My Current Recommendation</h3>
+  <p>Pick <strong>A</strong> as the first milestone, then layer selected pieces from B and C. The current code is too unstable for a top-tier shell or service layer to sit on safely.</p>
+</div>
