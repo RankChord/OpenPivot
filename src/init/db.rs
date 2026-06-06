@@ -6,10 +6,10 @@ pub async fn create_pool(database_url: String) -> PgPool {
         .min_connections(1)
         .connect(&database_url)
         .await
-        .expect("[数据库管理]: 无法连接到目标数据库");
+        .expect("[数据库管理]: 无法连接到目标数据库")
 }
 
-pub fn init_db(pgpool: &PgPool) {
+pub async fn init_db(pgpool: &PgPool)  -> bool {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS users (
@@ -24,4 +24,5 @@ pub fn init_db(pgpool: &PgPool) {
     .execute(pgpool)
     .await
     .expect("[数据库管理]: 无法创建用户表");
+    true
 }

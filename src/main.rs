@@ -8,11 +8,7 @@ mod init;
 use api::v1::system::health;
 use init::{config, db};
 
-
-#[derive(Debug, Deserialize)]
-struct DatabaseConfig {
-    url: String,
-}
+use serde::Deserialize;
 
 fn init_check(dir: &str, file_name: &str) -> bool {
     // 配置文件检查并初始化
@@ -45,7 +41,6 @@ async fn main() {
     if !init_check(&cfg_dir, "openpivot.conf") { return; }
 
     // 配置数据库
-
     let db_cfg = config::get_database_config(&cfg_dir, "openpivot.conf");
     let pool = db::create_pool(db_cfg.url).await;
 

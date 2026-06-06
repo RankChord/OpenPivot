@@ -17,8 +17,8 @@ struct AppConfig {
 }
 
 #[derive(Debug, Deserialize)]
-struct DatabaseConfig {
-    url: String,
+pub struct DatabaseConfig {
+    pub url: String,
 }
 
 pub fn has_file(dir: &str, file_name: &str) -> bool {
