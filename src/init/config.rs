@@ -16,6 +16,10 @@ struct AppConfig {
     enable: bool,
 }
 
+#[derive(Debug, Deserialize)]
+struct DatabaseConfig {
+    url: String,
+}
 
 pub fn has_file(dir: &str, file_name: &str) -> bool {
     let path = Path::new(dir).join(file_name);
@@ -57,3 +61,12 @@ pub fn create_file(dir: &str, file_name: &str) -> io::Result<()> {
     }
 }
 
+pub fn read_config(dir: &str, file_name: &str) -> String {
+    let path = Path::new(dir).join(file_name);
+    fs::read_to_string(&path).unwrap_or_else(|_| DEFAULT_CONFIG.to_string())
+}
+
+pub fn get_database_config(dir: &str, file_name: &str) -> DatabaseConfig {
+    let content = read_config(dir, file_name);
+    toml::from_str::<DatabaseConfig>(&content).expect("无法解析数据库配置")
+}

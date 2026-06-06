@@ -8,4 +8,11 @@ enable = false
 debug = true
 domain = rankchord.com
 federal = false
+
+[database]
+host = localhost
+port = 5432
+username = openpivot
+password = openpivot
+database = openpivot
 "#;

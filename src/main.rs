@@ -6,7 +6,13 @@ mod api;
 mod init;
 
 use api::v1::system::health;
-use init::config;
+use init::{config, db};
+
+
+#[derive(Debug, Deserialize)]
+struct DatabaseConfig {
+    url: String,
+}
 
 fn init_check(dir: &str, file_name: &str) -> bool {
     // 配置文件检查并初始化
@@ -37,6 +43,14 @@ async fn main() {
 
     // 初始化检查
     if !init_check(&cfg_dir, "openpivot.conf") { return; }
+
+    // 配置数据库
+
+    let db_cfg = config::get_database_config(&cfg_dir, "openpivot.conf");
+    let pool = db::create_pool(db_cfg.url).await;
+
+    // 初始化数据库
+    let _ = db::init_db(&pool);
 
     let app = Router::new().route("/health", get(health));
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", 3000))
