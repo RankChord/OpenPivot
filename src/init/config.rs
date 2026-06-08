@@ -6,19 +6,31 @@ use serde::Deserialize;
 
 use super::default::DEFAULT_CONFIG;
 
+
+// 配置结构体区域
 #[derive(Debug, Deserialize)]
-struct ConfigFile {
-    app: AppConfig,
+pub struct ConfigFile {
+    pub server: ServerConfig,
+    pub app: AppConfig,
+    pub database: DatabaseConfig,
 }
 
 #[derive(Debug, Deserialize)]
-struct AppConfig {
-    enable: bool,
+pub struct AppConfig {
+    pub enable: bool,
+    pub debug: bool,
+    pub domain: String,
+    pub federal: bool,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct DatabaseConfig {
-    pub url: String,
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub password: String,
+    pub database: String,
+    pub max_connections: u32,
 }
 
 pub fn has_file(dir: &str, file_name: &str) -> bool {
