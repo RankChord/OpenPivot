@@ -18,9 +18,9 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/requests", post(create_friend_request))
         .route("/requests", get(list_received_pending_requests))
-        .route("/requests/:id/accept", post(accept_friend_request))
-        .route("/requests/:id/reject", post(reject_friend_request))
-        .route("", get(list_friends))
+        .route("/requests/{id}/accept", post(accept_friend_request))
+        .route("/requests/{id}/reject", post(reject_friend_request))
+        .route("/", get(list_friends))
         
 }
 

@@ -1,339 +1,469 @@
 # OpenPivot
 
-OpenPivot is an Agent-specialized IM platform for orchestrating people, agents, workflows, knowledge, skills, and MCP tools in one programmable communication layer.
-
-Traditional IM systems are built around human-to-human messaging. They often expose limited bot capabilities instead of first-class protocols and interfaces for agents. OpenPivot takes the opposite direction: the conversation itself is the runtime surface, and agents are first-class participants that can discover context, invoke skills, collaborate with each other, and hand work back to users.
-
-## Why OpenPivot
-
-OpenPivot is designed for teams that want an IM service where agents can work directly inside communication flows instead of being bolted on as simple bots.
-
-The platform focuses on:
-
-- **Agent-native conversations**: agents, users, groups, workflows, and tools share a common interaction model.
-- **Open orchestration interfaces**: internal services and external agents can integrate through explicit APIs and event contracts.
-- **Workflow execution**: conversations can trigger, monitor, and coordinate long-running work.
-- **Group and personal knowledge graphs**: messages, files, tasks, people, agents, and skills can become structured context.
-- **Skill and MCP integration**: agents can discover and call platform skills, MCP servers, and approved external capabilities.
-- **Agent-to-agent collaboration**: agents can call, delegate, negotiate, and report work without pretending to be humans.
-- **User management optimized for agent work**: identity, permissions, delegation, and audit trails are designed around mixed human-agent teams.
-
-## Product Shape
-
-OpenPivot is not just a chat app with bots. It is an IM protocol and service layer where conversations become programmable coordination spaces.
-
-Core interaction types include:
-
-- **Direct conversation**: user-to-user, user-to-agent, and agent-to-agent messaging.
-- **Group conversation**: shared channels where humans and agents collaborate with scoped permissions.
-- **Workflow conversation**: a conversation bound to a task, process, incident, document, or automation run.
-- **Knowledge conversation**: a persistent context space backed by personal or group knowledge graph data.
-- **Tool conversation**: a controlled interface for invoking skills, MCP tools, and external services.
-
-## Architecture
-
-OpenPivot can be organized as a layered service architecture.
+OpenPivot 是一个正在开发中的 IM 后端项目。当前阶段目标不是做完整产品，而是先打通最小可用链路：
 
 ```text
-Clients
-  Web / Desktop / Mobile / CLI / Agent SDK
-        |
-API Gateway
-  HTTP API / WebSocket / Webhook / Agent Protocol
-        |
-Core Domain Services
-  Identity        Conversation      Message
-  Permission      Workflow          Agent Registry
-  Skill Registry  MCP Connector     Knowledge Graph
-        |
-Event & Orchestration Layer
-  Event Bus / Task Queue / Workflow Runtime / Policy Engine
-        |
-Storage Layer
-  Relational DB / Object Storage / Vector Index / Graph Store / Audit Log
-        |
-External Capabilities
-  MCP Servers / LLM Providers / Enterprise Systems / Custom Tools
+注册/登录 -> 搜索用户 -> 添加好友 -> 创建单聊会话 -> 发送消息 -> 拉取消息
 ```
 
-### 1. Client Layer
+项目当前使用 Rust + Axum + PostgreSQL + SQLx。
 
-Clients are thin surfaces over the same protocol model.
+## 当前进度
 
-- Human clients provide IM, workflow, knowledge, and administration views.
-- Agent SDKs expose conversation, identity, permission, and tool invocation APIs.
-- CLI clients support automation, local development, and operations workflows.
-
-### 2. API Gateway
-
-The gateway is the public boundary of the platform.
-
-Responsibilities:
-
-- Authenticate users, agents, services, and webhooks.
-- Expose REST or RPC APIs for administrative and query operations.
-- Expose WebSocket or streaming APIs for realtime messaging and events.
-- Normalize inbound agent calls, MCP callbacks, and webhook events.
-- Enforce rate limits, tenant boundaries, and protocol versioning.
-
-### 3. Identity and User Management
-
-OpenPivot treats agents as first-class identities, not hidden bot tokens.
-
-The identity model should support:
-
-- Human users.
-- Agent users.
-- Service accounts.
-- Groups and organizations.
-- Delegated authority from users to agents.
-- Capability-scoped credentials.
-- Audit trails for actions taken by agents on behalf of users.
-
-This enables safer user management for agent-heavy environments: an agent can be granted narrow authority for a workflow, skill, group, or data scope without receiving broad human credentials.
-
-### 4. Conversation and Message Service
-
-The conversation service owns the IM domain model.
-
-Key concepts:
-
-- Conversation: direct, group, workflow, knowledge, or tool-scoped space.
-- Participant: human, agent, service, or group role.
-- Message: text, structured event, command, tool call, file, workflow update, or graph annotation.
-- Thread: focused sub-context inside a conversation.
-- Receipt: delivery, read, acknowledgement, execution, or failure signal.
-
-Messages should support structured envelopes so agents can reason about intent, context, references, and expected outputs without scraping plain text.
-
-Example envelope:
-
-```json
-{
-  "type": "message.agent.request",
-  "conversation_id": "conv_123",
-  "sender": { "kind": "user", "id": "user_123" },
-  "target": { "kind": "agent", "id": "agent_planner" },
-  "body": {
-    "text": "Summarize the latest customer feedback and create follow-up tasks.",
-    "intent": "workflow.start",
-    "references": ["kg:customer/acme", "file:feedback-q2.csv"]
-  },
-  "policy": {
-    "allowed_skills": ["summarize", "task.create"],
-    "requires_user_confirmation": true
-  }
-}
-```
-
-### 5. Agent Registry
-
-The agent registry describes what each agent can do and how it can be called.
-
-It should track:
-
-- Agent identity and ownership.
-- Description, capabilities, and supported intents.
-- Required permissions and data scopes.
-- Available skills and MCP tools.
-- Runtime endpoint or execution backend.
-- Health, version, and policy metadata.
-
-This gives the platform a discovery mechanism for agent-to-agent work. An agent should be able to ask the platform which agent can perform a task, then call it through a governed interface.
-
-### 6. Workflow Runtime
-
-The workflow layer turns conversations into coordinated work.
-
-It should support:
-
-- Workflow templates.
-- Conversation-triggered workflow runs.
-- Human approval steps.
-- Agent task delegation.
-- Retry, timeout, compensation, and cancellation.
-- Run state streamed back into the conversation.
-- Workflow history linked to knowledge graph entities.
-
-In practice, a workflow conversation can become the durable control plane for a business process: users discuss the goal, agents execute steps, and the system records decisions and outputs.
-
-### 7. Knowledge Graph
-
-OpenPivot should maintain both personal and group knowledge graphs.
-
-Knowledge graph responsibilities:
-
-- Extract entities and relationships from messages, files, workflow outputs, and tool results.
-- Store personal memory, team memory, project context, and organization-level concepts.
-- Link conversations to tasks, documents, users, agents, decisions, and external records.
-- Provide retrieval context for agents with permission-aware filtering.
-- Support graph queries and semantic search.
-
-Suggested stores:
-
-- Relational database for canonical records.
-- Graph database or graph tables for relationships.
-- Vector index for semantic retrieval.
-- Object storage for files and large artifacts.
-
-### 8. Skill and MCP Layer
-
-Skills are platform-governed capabilities. MCP connectors allow OpenPivot agents to use external tools through standard interfaces.
-
-The skill layer should provide:
-
-- Skill registration and versioning.
-- Input and output schemas.
-- Permission requirements.
-- Execution adapters.
-- Result normalization.
-- Audit logging.
-- Human confirmation policies for sensitive actions.
-
-The MCP layer should provide:
-
-- MCP server registration.
-- Tool discovery.
-- Credential binding.
-- Policy checks before invocation.
-- Conversation-aware context passing.
-- Structured tool result messages.
-
-### 9. Event and Policy Layer
-
-The platform should be event-driven internally.
-
-Important event families:
-
-- Conversation events.
-- Message events.
-- Workflow events.
-- Agent lifecycle events.
-- Skill and MCP invocation events.
-- Knowledge graph update events.
-- Identity, permission, and audit events.
-
-The policy engine should evaluate what a user, agent, service, or workflow is allowed to do at the moment of action. This is especially important for agent-to-agent calls, delegated user authority, knowledge retrieval, and external tool execution.
-
-## Suggested Rust Module Layout
-
-The current repository is a minimal Rust project. A possible future layout:
+已经完成的能力：
 
 ```text
-src/
-  main.rs
-  config.rs
-  app.rs
-  api/
-    mod.rs
-    http.rs
-    websocket.rs
-    webhook.rs
-  domain/
-    mod.rs
-    identity.rs
-    conversation.rs
-    message.rs
-    agent.rs
-    workflow.rs
-    skill.rs
-    knowledge.rs
-    policy.rs
-  service/
-    mod.rs
-    identity_service.rs
-    conversation_service.rs
-    agent_service.rs
-    workflow_service.rs
-    skill_service.rs
-    knowledge_service.rs
-  infra/
-    mod.rs
-    database.rs
-    event_bus.rs
-    object_store.rs
-    vector_store.rs
-    graph_store.rs
-    mcp_client.rs
-  protocol/
-    mod.rs
-    envelope.rs
-    event.rs
-    command.rs
-  error.rs
+认证：
+- 注册
+- 登录
+- access token
+- refresh token
+- logout
+- me
+
+用户：
+- 搜索用户
+
+好友：
+- 发送好友申请
+- 查看收到的待处理申请
+- 同意好友申请
+- 拒绝好友申请
+- 查看好友列表
+
+会话与消息：
+- 创建或获取单聊会话
+- 查看我的会话列表
+- 发送消息
+- 拉取消息
 ```
 
-Recommended boundaries:
+当前主要还没有做：
 
-- `domain`: pure domain models and invariants.
-- `service`: application use cases and orchestration logic.
-- `api`: transport-specific handlers.
-- `infra`: database, queue, storage, MCP, and external integrations.
-- `protocol`: stable wire contracts for clients, agents, and services.
+```text
+- WebSocket 实时通知
+- 未读数
+- 已读回执
+- 消息分页
+- 撤回/删除消息
+- 群聊
+- 文件/图片消息
+- 更细粒度的错误码
+- 自动化测试
+```
 
-## Initial Milestones
+## 启动方式
 
-### Milestone 1: Protocol and Core IM
+第一次启动时，如果配置文件不存在，程序会创建默认配置并退出。
 
-- Define user, agent, conversation, participant, and message models.
-- Implement HTTP APIs for creating conversations and sending messages.
-- Implement WebSocket streaming for realtime delivery.
-- Add structured message envelopes.
-- Add basic authentication and permission checks.
+配置文件路径：
 
-### Milestone 2: Agent Registry and Agent Calls
+```text
+~/.config/openpivot/openpivot.conf
+```
 
-- Register agent identities and capabilities.
-- Allow user-to-agent and agent-to-agent messages.
-- Add agent discovery by capability or intent.
-- Add audit logs for agent actions.
+默认配置创建后，需要把：
 
-### Milestone 3: Workflow Runtime
+```toml
+[app]
+enable = true
+```
 
-- Bind workflow runs to conversations.
-- Stream workflow status as messages.
-- Add approval steps and cancellation.
-- Add retry and timeout behavior.
+数据库配置使用拆分字段，而不是单个 URL：
 
-### Milestone 4: Knowledge Graph
+```toml
+[database]
+host = "127.0.0.1"
+port = 5432
+username = "openpivot"
+password = "openpivot"
+database = "openpivot"
+max_connections = 10
+```
 
-- Extract entities from messages and workflow outputs.
-- Store personal and group graph context.
-- Add permission-aware retrieval APIs.
-- Add semantic search for conversations and knowledge.
-
-### Milestone 5: Skill and MCP Integration
-
-- Register platform skills with schemas and policies.
-- Register MCP servers and expose tool discovery.
-- Allow agents to invoke tools through governed calls.
-- Persist structured tool results back into conversations.
-
-## Design Principles
-
-- **Agents are first-class participants**: they have identity, permissions, capabilities, and accountability.
-- **Conversations are programmable**: messages can carry structured commands, events, references, and policy constraints.
-- **Context is governed**: personal and group knowledge should be retrieved only within explicit permission boundaries.
-- **Work is observable**: workflow and tool execution should be visible in the same conversation where work was requested.
-- **Protocols matter**: the platform should expose stable contracts instead of limiting integrations to bot-style callbacks.
-- **Human control remains central**: approvals, delegation, and audit trails keep agent autonomy usable in real organizations.
-
-## Development
-
-This repository currently contains a minimal Rust binary crate.
-
-Run the project:
+启动：
 
 ```bash
 cargo run
 ```
 
-Run checks:
+检查编译：
 
 ```bash
 cargo check
 ```
 
-## Status
+## 数据库迁移
 
-OpenPivot is in early design and scaffolding. The README describes the intended direction and architecture so implementation can grow around stable product and domain boundaries.
+迁移文件位于：
+
+```text
+migrations/
+```
+
+当前包含：
+
+```text
+202606070001_create_users.sql
+202606070002_create_user_sessions.sql
+202606140001_create_friend_requests.sql
+202606140002_create_friendships.sql
+202606140003_create_conversations.sql
+202606140004_create_messages.sql
+```
+
+程序启动时会执行 SQLx migration。
+
+## 鉴权方式
+
+除注册、登录、刷新 token 等接口外，业务接口通常需要 access token。
+
+请求头格式：
+
+```http
+Authorization: Bearer <access_token>
+```
+
+access token 过期后，客户端应使用 refresh token 调用刷新接口获取新 token。
+
+## API 概览
+
+基础路径：
+
+```text
+/v1
+```
+
+### Auth
+
+#### 注册
+
+```http
+POST /v1/auth/register
+Content-Type: application/json
+```
+
+请求：
+
+```json
+{
+  "username": "alice",
+  "password": "password123",
+  "nickname": "Alice"
+}
+```
+
+规则：
+
+```text
+username: 3-16 位，只允许英文和数字
+password: 至少 8 位
+nickname: 1-64 位
+```
+
+响应：
+
+```json
+{
+  "id": 1,
+  "username": "alice",
+  "nickname": "Alice"
+}
+```
+
+#### 登录
+
+```http
+POST /v1/auth/login
+Content-Type: application/json
+```
+
+请求：
+
+```json
+{
+  "username": "alice",
+  "password": "password123"
+}
+```
+
+响应：
+
+```json
+{
+  "access_token": "...",
+  "refresh_token": "...",
+  "token_type": "Bearer",
+  "expires_in": 900
+}
+```
+
+#### 刷新 Token
+
+```http
+POST /v1/auth/refresh
+Content-Type: application/json
+```
+
+请求：
+
+```json
+{
+  "refresh_token": "..."
+}
+```
+
+#### 登出
+
+```http
+POST /v1/auth/logout
+Content-Type: application/json
+```
+
+请求：
+
+```json
+{
+  "refresh_token": "..."
+}
+```
+
+成功响应：
+
+```text
+204 No Content
+```
+
+#### 当前用户
+
+```http
+GET /v1/auth/me
+Authorization: Bearer <access_token>
+```
+
+响应：
+
+```json
+{
+  "user_id": 1
+}
+```
+
+### Users
+
+#### 搜索用户
+
+```http
+GET /v1/users/search?q=ali
+Authorization: Bearer <access_token>
+```
+
+响应：
+
+```json
+[
+  {
+    "id": 2,
+    "username": "alice2",
+    "nickname": "Alice Two"
+  }
+]
+```
+
+### Friends
+
+#### 好友列表
+
+```http
+GET /v1/friends
+Authorization: Bearer <access_token>
+```
+
+响应：
+
+```json
+[
+  {
+    "id": 2,
+    "username": "bob",
+    "nickname": "Bob"
+  }
+]
+```
+
+#### 发送好友申请
+
+```http
+POST /v1/friends/requests
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+请求：
+
+```json
+{
+  "user_id": 2,
+  "message": "你好"
+}
+```
+
+响应：
+
+```json
+{
+  "id": 1,
+  "requester_id": 1,
+  "addressee_id": 2,
+  "status": "pending",
+  "message": "你好"
+}
+```
+
+#### 查看收到的待处理好友申请
+
+```http
+GET /v1/friends/requests
+Authorization: Bearer <access_token>
+```
+
+#### 同意好友申请
+
+```http
+POST /v1/friends/requests/:id/accept
+Authorization: Bearer <access_token>
+```
+
+#### 拒绝好友申请
+
+```http
+POST /v1/friends/requests/:id/reject
+Authorization: Bearer <access_token>
+```
+
+### Conversations
+
+#### 创建或获取单聊会话
+
+```http
+POST /v1/conversations/direct
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+请求：
+
+```json
+{
+  "user_id": 2
+}
+```
+
+响应：
+
+```json
+{
+  "id": 1,
+  "conversation_type": "direct",
+  "user_low_id": 1,
+  "user_high_id": 2
+}
+```
+
+只有好友之间允许创建 direct conversation。
+
+#### 查看我的会话列表
+
+```http
+GET /v1/conversations
+Authorization: Bearer <access_token>
+```
+
+#### 发送消息
+
+```http
+POST /v1/conversations/:id/messages
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+请求：
+
+```json
+{
+  "content": "你好"
+}
+```
+
+响应：
+
+```json
+{
+  "id": 1,
+  "conversation_id": 1,
+  "sender_id": 1,
+  "content": "你好",
+  "created_at": "2026-06-20T12:00:00Z"
+}
+```
+
+#### 拉取消息
+
+```http
+GET /v1/conversations/:id/messages
+Authorization: Bearer <access_token>
+```
+
+当前按创建时间正序返回最多 100 条。
+
+## 错误响应
+
+统一错误响应格式：
+
+```json
+{
+  "code": "bad_request",
+  "message": "Bad request"
+}
+```
+
+当前常见错误：
+
+```text
+400 Bad Request
+401 Unauthorized
+403 Forbidden
+409 Conflict
+500 Internal Server Error
+```
+
+## 客户端建议
+
+当前客户端开发可以先按 HTTP 拉取模型实现，不需要一开始接 WebSocket。
+
+建议流程：
+
+```text
+登录后保存 access_token 和 refresh_token
+所有业务请求带 Authorization header
+access token 过期时调用 refresh
+好友申请列表通过 GET /v1/friends/requests 拉取
+消息通过 GET /v1/conversations/:id/messages 拉取
+```
+
+后续 WebSocket 的定位：
+
+```text
+HTTP API: 创建事实、执行操作、返回结果
+WebSocket: 通知客户端有变化
+```
+
+## Agent 协作约定
+
+本项目有开发协作偏好文件：
+
+```text
+agent.md
+```
+
+后续 Agent 参与开发时，应先阅读该文件。核心原则是：不要直接替项目作者大规模修改业务代码，优先给结构、示例、解释和审查。

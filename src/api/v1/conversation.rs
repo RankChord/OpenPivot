@@ -22,9 +22,9 @@ pub fn routes() -> Router<AppState> {
         .post(send_message);
 
     Router::new()
-        .route("", get(list_conversations))
+        .route("/", get(list_conversations))
         .route("/direct", post(create_direct_conversation))
-        .route("/:id/messages", message_routes)
+        .route("/{id}/messages", message_routes)
 }
 
 pub async fn create_direct_conversation(
