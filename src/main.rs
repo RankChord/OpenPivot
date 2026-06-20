@@ -1,31 +1,17 @@
 use std::env;
 use std::path::PathBuf;
-use axum::{Router, routing::get};
 
 mod api;
+mod app;
 mod init;
+mod core;
+mod error;
+mod models;
+mod repository;
 
-use api::v1::system::health;
+use app::{AppState, build_router};
 use init::{config, db};
 
-use serde::Deserialize;
-
-fn init_check(dir: &str, file_name: &str) -> bool {
-    // 配置文件检查并初始化
-    if !config::has_file(dir, file_name) {
-        println!("[初始化检查]: 缺少配置文件，正在创建默认配置文件");
-        config::create_file(dir, file_name);
-        return true;
-    }
-
-    // 检查用户是否配置完成
-    if !config::is_enable(dir, file_name) {
-        println!("[初始化检查]: 如果你已经完成对配置文件的初始化, 请将配置文件的app->enable置为True");
-        return false;
-    }
-
-    true
-}
 
 #[tokio::main]
 async fn main() {
@@ -38,23 +24,40 @@ async fn main() {
         .into_owned();
 
     // 初始化检查
-    if !init_check(&cfg_dir, "openpivot.conf") { return; }
+    if !config::has_file(&cfg_dir, "openpivot.conf") {
+        println!("[初始化检查]: 缺少配置文件，正在创建默认配置文件");
+        let _ = config::create_file(&cfg_dir, "openpivot.conf");
+        return;
+    }
+
+    let cfg = config::load_config(&cfg_dir, "openpivot.conf");
+
+    if !cfg.app.enable {
+        println!("[初始化检查]: 如果你已经完成对配置文件的初始化, 请将配置文件的app->enable置为True");
+        return;
+    }
 
     // 配置数据库
-    let db_cfg = config::get_database_config(&cfg_dir, "openpivot.conf");
-    let pool = db::create_pool(db_cfg.url).await;
+    let pool = db::create_pool(&cfg.database).await;
 
     // 初始化数据库
-    let _ = db::init_db(&pool);
+    db::run_migrations(&pool).await;
 
-    let app = Router::new().route("/health", get(health));
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 3000))
-        .await
-        .unwrap();
+    let state = AppState {
+        db: pool,
+        config: cfg.clone(),
+    };
+
+    let app = build_router(state);
+
+    let listener = tokio::net::TcpListener::bind((
+        cfg.server.host.as_str(),
+        cfg.server.port,
+    ))
+    .await
+    .unwrap();
 
     
     print!("正在监听{}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
-
-   
 }

@@ -7,15 +7,22 @@ use serde::Deserialize;
 use super::default::DEFAULT_CONFIG;
 
 
-// 配置结构体区域
-#[derive(Debug, Deserialize)]
+// 定义配置结构体
+#[derive(Debug, Clone, Deserialize)]
 pub struct ConfigFile {
     pub server: ServerConfig,
     pub app: AppConfig,
     pub database: DatabaseConfig,
+    pub auth: AuthConfig,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+pub struct ServerConfig {
+    pub host: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct AppConfig {
     pub enable: bool,
     pub debug: bool,
@@ -23,7 +30,7 @@ pub struct AppConfig {
     pub federal: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct DatabaseConfig {
     pub host: String,
     pub port: u16,
@@ -33,24 +40,32 @@ pub struct DatabaseConfig {
     pub max_connections: u32,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct AuthConfig {
+    pub jwt_secret: String,
+    pub access_token_ttl_minutes: u64,
+    pub refresh_token_ttl_days: u64,
+}
+
+// 配置数据库数据格式
+impl DatabaseConfig {
+    pub fn connection_url(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}/{}",
+            self.username,
+            self.password,
+            self.host,
+            self.port,
+            self.database
+        )
+    }
+}
+
 pub fn has_file(dir: &str, file_name: &str) -> bool {
     let path = Path::new(dir).join(file_name);
     path.exists()
 }
 
-pub fn is_enable(dir: &str, file_name: &str) -> bool {
-    let path = Path::new(dir).join(file_name);
-
-    let content = match fs::read_to_string(&path) {
-        Ok(text) => text,
-        Err(_) => DEFAULT_CONFIG.to_string(),
-    };
-
-    match toml::from_str::<ConfigFile>(&content) {
-        Ok(cfg) => cfg.app.enable,
-        Err(_) => false, // 解析失败时默认 false
-    }
-}
 
 pub fn create_file(dir: &str, file_name: &str) -> io::Result<()> {
     let path = Path::new(dir).join(file_name);
@@ -73,12 +88,8 @@ pub fn create_file(dir: &str, file_name: &str) -> io::Result<()> {
     }
 }
 
-pub fn read_config(dir: &str, file_name: &str) -> String {
+pub fn load_config(dir: &str, file_name: &str) -> ConfigFile {
     let path = Path::new(dir).join(file_name);
-    fs::read_to_string(&path).unwrap_or_else(|_| DEFAULT_CONFIG.to_string())
-}
-
-pub fn get_database_config(dir: &str, file_name: &str) -> DatabaseConfig {
-    let content = read_config(dir, file_name);
-    toml::from_str::<DatabaseConfig>(&content).expect("无法解析数据库配置")
+    let content = fs::read_to_string(&path).unwrap_or_else(|_| DEFAULT_CONFIG.to_string());
+    toml::from_str::<ConfigFile>(&content).expect("无法解析配置文件")
 }

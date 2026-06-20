@@ -1,28 +1,19 @@
 use sqlx::{postgres::PgPoolOptions, PgPool};
 
-pub async fn create_pool(database_url: String) -> PgPool {
+use super::config::DatabaseConfig;
+
+pub async fn create_pool(config: &DatabaseConfig) -> PgPool {
     PgPoolOptions::new()
-        .max_connections(10)
+        .max_connections(config.max_connections)
         .min_connections(1)
-        .connect(&database_url)
+        .connect(&config.connection_url())
         .await
         .expect("[数据库管理]: 无法连接到目标数据库")
 }
 
-pub async fn init_db(pgpool: &PgPool)  -> bool {
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            username TEXT NOT NULL UNIQUE,
-            nickname TEXT NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-        "#,
-    )
-    .execute(pgpool)
-    .await
-    .expect("[数据库管理]: 无法创建用户表");
-    true
+pub async fn run_migrations(pgpool: &PgPool) {
+    sqlx::migrate!("./migrations")
+        .run(pgpool)
+        .await
+        .expect("[数据库管理]: 数据库迁移失败");
 }
