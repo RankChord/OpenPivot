@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 use time::OffsetDateTime;
-
+use crate::error::AppError;
 use crate::models::session::UserSession;
 
 pub async fn create_session(
@@ -14,7 +14,7 @@ pub async fn create_session(
     let session = sqlx::query_as::<_, UserSession>(
         r#"
         INSERT INTO user_sessions (user_id, refresh_token_hash, expires_at, user_agent, ip_address)
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4, $5::INET)
         RETURNING
             id,
             user_id,
@@ -24,7 +24,7 @@ pub async fn create_session(
             created_at,
             last_used_at,
             user_agent,
-            ip_address
+            ip_address::TEXT AS ip_address
         "#,
     )
     .bind(user_id)
@@ -33,7 +33,11 @@ pub async fn create_session(
     .bind(user_agent)
     .bind(ip_address)
     .fetch_one(pool)
-    .await?;
+    .await
+    .map_err(|err| {
+        eprintln!("[数据库管理]: 创建 session 失败: {:?}", err);
+        err
+    })?;
 
     Ok(session)
 }
@@ -53,7 +57,7 @@ pub async fn find_session_by_refresh_token_hash(
             created_at,
             last_used_at,
             user_agent,
-            ip_address
+            ip_address::TEXT AS ip_address
         FROM user_sessions
         WHERE refresh_token_hash = $1
         "#,
