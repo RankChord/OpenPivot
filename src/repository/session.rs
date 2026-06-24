@@ -1,6 +1,5 @@
 use sqlx::PgPool;
 use time::OffsetDateTime;
-use crate::error::AppError;
 use crate::models::session::UserSession;
 
 pub async fn create_session(

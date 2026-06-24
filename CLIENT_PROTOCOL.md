@@ -473,3 +473,254 @@ message_created -> GET /v1/conversations/:id/messages
 出现 401 时实现 refresh 流程
 UI 上允许后端返回 400/403/409，并给出可理解提示
 ```
+
+## 协作空间与流程接口补充
+
+本节补充当前协作空间与协作流程 MVP 接口。客户端仍然只接 HTTP API，WebSocket 后续只做通知变化。
+
+### SpaceResponse
+
+```json
+{
+  "id": 1,
+  "name": "产品协作空间",
+  "type": "group",
+  "owner_id": 1
+}
+```
+
+### SpaceMemberResponse
+
+```json
+{
+  "id": 1,
+  "space_id": 1,
+  "user_id": 2,
+  "role": "member"
+}
+```
+
+### SpaceMessage
+
+```json
+{
+  "id": 1,
+  "space_id": 1,
+  "sender_id": 2,
+  "content": "流程任务已完成：确认需求",
+  "created_at": "2026-06-24T12:00:00Z"
+}
+```
+
+### FlowResponse
+
+```json
+{
+  "id": 1,
+  "space_id": 1,
+  "name": "需求确认流程",
+  "description": "确认一条需求是否可以进入开发",
+  "created_by": 1
+}
+```
+
+### StartFlowRunResponse
+
+```json
+{
+  "run_id": 1,
+  "task_id": 1,
+  "status": "waiting_action"
+}
+```
+
+### CompleteFlowTaskResponse
+
+```json
+{
+  "task_id": 1,
+  "run_id": 1,
+  "status": "completed"
+}
+```
+
+## 协作空间流程
+
+### Create Space
+
+```http
+POST /v1/spaces/
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "name": "产品协作空间"
+}
+```
+
+Response: `SpaceResponse`
+
+### List My Spaces
+
+```http
+GET /v1/spaces/
+Authorization: Bearer <access_token>
+```
+
+Response: `SpaceResponse[]`
+
+### Add Space Member
+
+```http
+POST /v1/spaces/{space_id}/members
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "user_id": 2
+}
+```
+
+Response: `SpaceMemberResponse`
+
+### List Space Members
+
+```http
+GET /v1/spaces/{space_id}/members
+Authorization: Bearer <access_token>
+```
+
+Response: `SpaceMemberResponse[]`
+
+### Create Space Message
+
+```http
+POST /v1/spaces/{space_id}/messages
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "content": "这里是空间消息"
+}
+```
+
+Response: `SpaceMessage`
+
+### List Space Messages
+
+```http
+GET /v1/spaces/{space_id}/messages
+Authorization: Bearer <access_token>
+```
+
+Response: `SpaceMessage[]`
+
+规则：当前登录用户必须属于该 space，当前返回最多 100 条，按 `created_at ASC` 排序。
+
+## 协作流程 MVP
+
+当前协作流程只实现最小链路：
+
+```text
+开始 -> 协作者操作 -> 协作空间通知 -> 结束
+```
+
+暂不支持条件判断、循环、等待节点、HTTP 访问、执行代码、多节点编排。
+
+### Create Flow
+
+```http
+POST /v1/spaces/{space_id}/flows
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "name": "需求确认流程",
+  "description": "确认一条需求是否可以进入开发"
+}
+```
+
+Response: `FlowResponse`
+
+规则：当前登录用户必须属于该 space。
+
+### List Flows
+
+```http
+GET /v1/spaces/{space_id}/flows
+Authorization: Bearer <access_token>
+```
+
+Response: `FlowResponse[]`
+
+### Start Flow Run
+
+```http
+POST /v1/spaces/{space_id}/flows/{flow_id}/runs
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "assignee_id": 2,
+  "task_title": "确认需求",
+  "task_description": "请确认这条需求是否可以进入开发"
+}
+```
+
+Response: `StartFlowRunResponse`
+
+规则：当前登录用户必须属于该 space，`assignee_id` 也必须属于该 space。成功后服务端会创建一个 pending 任务，返回的 `task_id` 用于完成任务。
+
+### Complete Flow Task
+
+```http
+POST /v1/flow-tasks/{task_id}/complete
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "result": "已确认，可以进入开发"
+}
+```
+
+Response: `CompleteFlowTaskResponse`
+
+规则：只有任务 assignee 可以完成该任务；任务只能完成一次；成功后服务端会写入一条协作空间消息；当前 MVP 会直接把 flow run 标记为 completed。
+
+## 最小协作流程
+
+```text
+1. A 登录
+2. B 登录
+3. A 创建协作空间
+4. A 把 B 加入协作空间
+5. A 创建协作流程
+6. A 启动协作流程，并把任务指派给 B
+7. B 完成任务
+8. A/B 拉取协作空间消息，看到流程完成通知
+```
+
