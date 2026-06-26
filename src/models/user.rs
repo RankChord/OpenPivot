@@ -1,12 +1,15 @@
 use time::OffsetDateTime;
 
+use serde::Deserialize;
+
 #[derive(Debug)]
 pub struct User {
     pub id: i64,
     pub username: String,
     pub nickname: String,
-    pub password_hash: String,
     pub status: UserStatus,
+    pub password_hash: String,
+    pub avatar_url: Option<String>,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
     pub last_login_at: Option<OffsetDateTime>,
@@ -18,6 +21,12 @@ pub enum UserStatus {
     Disabled,
     Deleted,
     Pending,
+}
+
+
+#[derive(Debug, Deserialize)]
+pub struct SearchUsersQuery {
+    pub q: String,
 }
 
 impl UserStatus {

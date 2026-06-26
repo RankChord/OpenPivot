@@ -12,7 +12,7 @@ use crate::app::AppState;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .nest("", flow::routes())
+        .merge(flow::routes())
         .nest("/auth", auth::routes())
         .nest("/users", user::routes())
         .nest("/spaces", space::routes())

@@ -1,32 +1,26 @@
 use axum::{
     extract::{Query, State},
     http::HeaderMap,
+    routing::get,
+    Router,
     Json,
 };
-use serde::Deserialize;
 
 use crate::{
     api::v1::extractors::require_user_id,
     app::AppState,
     error::AppError,
-    models::user::UserSearchItem,
+    models::user::{UserSearchItem, SearchUsersQuery},
     repository::user,
 };
 
-use axum::{
-    routing::get,
-    Router,
-};
+
 
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/search", get(search_users))
 }
 
-#[derive(Debug, Deserialize)]
-pub struct SearchUsersQuery {
-    pub q: String,
-}
 
 pub async fn search_users(
     State(state): State<AppState>,
