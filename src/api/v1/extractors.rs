@@ -5,6 +5,7 @@ use crate::{
     error::AppError,
 };
 
+/// 提取请求头中的用户ID
 pub fn require_user_id(
     headers: &HeaderMap,
     jwt_secret: &str,

@@ -8,6 +8,7 @@ pub struct RegisterRequest {
     pub password: String,
 }
 
+/// 登录请求体
 #[derive(Deserialize, Debug)]
 pub struct LoginRequest {
     pub username: String,

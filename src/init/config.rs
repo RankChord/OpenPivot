@@ -41,6 +41,16 @@ pub struct DatabaseConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct MinioConfig {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub password: String,
+    pub bucket: String,
+}
+
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct AuthConfig {
     pub jwt_secret: String,
     pub access_token_ttl_minutes: u64,
