@@ -47,7 +47,28 @@ pub struct CreateSpaceResponse {
     pub id: i64,                                // 数据库空间id主键
     pub name: String,                           // 空间名称
     pub space_type: String,                     // 空间类型 (public, private)   
-    pub owner_id: i64,
+    pub owner_id: i64,                          // 空间所有者用户id
+}
+
+// 创建空间信息响应结构体
+#[derive(Debug, serde::Deserialize)]
+pub struct CreateSpaceMessageRequest {
+    pub content: String,                        // 消息内容
+}
+
+// 空间添加成员请求结构体
+#[derive(Debug, serde::Deserialize)]
+pub struct AddSpaceMemberRequest {
+    pub user_id: i64,                           // 成员用户id
+}
+
+// 空间添加成员响应结构体
+#[derive(Debug, serde::Serialize)]
+pub struct AddSpaceMemberResponse {
+    pub id: i64,                                // 数据库空间成员id主键
+    pub space_id: i64,                          // 所属空间id
+    pub user_id: i64,                           // 成员用户id
+    pub role: String,                           // 成员角色 (owner, admin, member)
 }
 
 
@@ -150,24 +171,7 @@ impl TryFrom<&str> for SpaceMessageStatus {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
-pub struct AddSpaceMemberRequest {
-    pub user_id: i64,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct SpaceMemberResponse {
-    pub id: i64,
-    pub space_id: i64,
-    pub user_id: i64,
-    pub role: String,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct CreateSpaceMessageRequest {
-    pub content: String,
-}
-
+// 实现空间模型的响应转换方法
 impl Space {
     pub fn into_response(self) -> SpaceResponse {
         SpaceResponse {
@@ -179,6 +183,7 @@ impl Space {
     }
 }
 
+// 实现空间成员模型的响应转换方法
 impl SpaceMember {
     pub fn into_response(self) -> SpaceMemberResponse {
         SpaceMemberResponse {
