@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS messages (
-    id BIGSERIAL PRIMARY KEY,
-    conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-    sender_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY,
+    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

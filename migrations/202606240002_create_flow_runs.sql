@@ -1,10 +1,10 @@
 CREATE TABLE IF NOT EXISTS flow_runs (
-    id BIGSERIAL PRIMARY KEY,
-    flow_id BIGINT NOT NULL REFERENCES flows(id) ON DELETE CASCADE,
-    space_id BIGINT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY,
+    flow_id UUID NOT NULL REFERENCES flows(id) ON DELETE CASCADE,
+    space_id UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'running',
-    started_by BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    current_task_id BIGINT,
+    started_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    current_task_id UUID,
     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     completed_at TIMESTAMPTZ,
 

@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS friend_requests (
-    id BIGSERIAL PRIMARY KEY,
-    requester_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    addressee_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY,
+    requester_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    addressee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'pending',
     message TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

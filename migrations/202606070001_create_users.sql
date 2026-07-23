@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS users (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     nickname TEXT NOT NULL,
     avatar_url TEXT NOT NULL,

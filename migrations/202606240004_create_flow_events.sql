@@ -1,9 +1,9 @@
 CREATE TABLE IF NOT EXISTS flow_events (
-    id BIGSERIAL PRIMARY KEY,
-    flow_run_id BIGINT NOT NULL REFERENCES flow_runs(id) ON DELETE CASCADE,
-    space_id BIGINT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY,
+    flow_run_id UUID NOT NULL REFERENCES flow_runs(id) ON DELETE CASCADE,
+    space_id UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
     event_type TEXT NOT NULL,
-    actor_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
     payload JSONB NOT NULL DEFAULT '{}'::JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
