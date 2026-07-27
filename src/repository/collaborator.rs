@@ -2,11 +2,11 @@ use sqlx::PgPool;
 use time::OffsetDateTime;
 
 
-use crate::models::friend::{FriendItem, FriendRequest, FriendRequestStatus};
+use crate::models::collaborator::{CollaboratorItem, CollaboratorRequest, CollaboratorRequestStatus};
 
 
 #[derive(sqlx::FromRow)]
-struct FriendRequestRow {
+struct CollaboratorRequestRow {
     id: i64,
     requester_id: i64,
     addressee_id: i64,
@@ -16,13 +16,13 @@ struct FriendRequestRow {
     updated_at: OffsetDateTime,
 }
 
-impl TryFrom<FriendRequestRow> for FriendRequest {
+impl TryFrom<CollaboratorRequestRow> for CollaboratorRequest {
     type Error = ();
 
-    fn try_from(row: FriendRequestRow) -> Result<Self, Self::Error> {
-        let status = FriendRequestStatus::try_from(row.status.as_str())?;
+    fn try_from(row: CollaboratorRequestRow) -> Result<Self, Self::Error> {
+        let status = CollaboratorRequestStatus::try_from(row.status.as_str())?;
 
-        Ok(FriendRequest {
+        Ok(CollaboratorRequest {
             id: row.id,
             requester_id: row.requester_id,
             addressee_id: row.addressee_id,
@@ -34,15 +34,15 @@ impl TryFrom<FriendRequestRow> for FriendRequest {
     }
 }
 
-pub async fn create_friend_request(
+pub async fn create_collaborator_request(
     pool: &PgPool,
     requester_id: i64,
     addressee_id: i64,
     message: Option<&str>,
-) -> Result<FriendRequest, sqlx::Error>{
-    let row = sqlx::query_as::<_, FriendRequestRow>(
+) -> Result<CollaboratorRequest, sqlx::Error>{
+    let row = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
-        INSERT INTO friend_requests (requester_id, addressee_id, message)
+        INSERT INTO collaborator_requests (requester_id, addressee_id, message)
         VALUES ($1, $2, $3)
         RETURNING
             id,
@@ -60,7 +60,7 @@ pub async fn create_friend_request(
     .fetch_one(pool)
     .await?;
 
-    let request = FriendRequest::try_from(row)
+    let request = CollaboratorRequest::try_from(row)
         .map_err(|_| sqlx::Error::RowNotFound)?;
 
     Ok(request)
@@ -70,8 +70,8 @@ pub async fn find_pending_request_between_users(
     pool: &PgPool,
     user_a_id: i64,
     user_b_id: i64,
-) -> Result<Option<FriendRequest>, sqlx::Error>{
-    let row = sqlx::query_as::<_, FriendRequestRow>(
+) -> Result<Option<CollaboratorRequest>, sqlx::Error>{
+    let row = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
         SELECT
             id,
@@ -81,7 +81,7 @@ pub async fn find_pending_request_between_users(
             message,
             created_at,
             updated_at
-        FROM friend_requests
+        FROM collaborator_requests
         WHERE status = 'pending'
         AND (
             (requester_id = $1 AND addressee_id = $2)
@@ -98,7 +98,7 @@ pub async fn find_pending_request_between_users(
 
     match row {
     Some(row) => {
-        let request = FriendRequest::try_from(row)
+        let request = CollaboratorRequest::try_from(row)
             .map_err(|_| sqlx::Error::RowNotFound)?;
 
         Ok(Some(request))
@@ -107,7 +107,7 @@ pub async fn find_pending_request_between_users(
 }
 }
 
-pub async fn create_friendship(
+pub async fn create_collaboratorship(
     pool: &PgPool,
     user_a_id: i64,
     user_b_id: i64,
@@ -117,7 +117,7 @@ pub async fn create_friendship(
 
     sqlx::query(
         r#"
-        INSERT INTO friendships (user_low_id, user_high_id)
+        INSERT INTO collaboratorships (user_low_id, user_high_id)
         VALUES ($1, $2)
         ON CONFLICT (user_low_id, user_high_id) DO NOTHING
         "#,
@@ -130,14 +130,14 @@ pub async fn create_friendship(
     Ok(())
 }
 
-pub async fn accept_friend_request(
+pub async fn accept_collaborator_request(
     pool: &PgPool,
     request_id: i64,
     current_user_id: i64,
-) -> Result<Option<FriendRequest>, sqlx::Error> {
-    let row = sqlx::query_as::<_, FriendRequestRow>(
+) -> Result<Option<CollaboratorRequest>, sqlx::Error> {
+    let row = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
-        UPDATE friend_requests
+        UPDATE collaborator_requests
         SET status = 'accepted',
             updated_at = NOW()
         WHERE id = $1
@@ -159,12 +159,12 @@ pub async fn accept_friend_request(
     .await?;
 
     let request = match row {
-        Some(row) => FriendRequest::try_from(row)
+        Some(row) => CollaboratorRequest::try_from(row)
             .map_err(|_| sqlx::Error::RowNotFound)?,
         None => return Ok(None),
     };
 
-    create_friendship(
+    create_collaboratorship(
         pool,
         request.requester_id,
         request.addressee_id,
@@ -174,14 +174,14 @@ pub async fn accept_friend_request(
     Ok(Some(request))
 }
 
-pub async fn reject_friend_request(
+pub async fn reject_collaborator_request(
     pool: &PgPool,
     request_id: i64,
     current_user_id: i64,
-) -> Result<Option<FriendRequest>, sqlx::Error> {
-    let row = sqlx::query_as::<_, FriendRequestRow>(
+) -> Result<Option<CollaboratorRequest>, sqlx::Error> {
+    let row = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
-        UPDATE friend_requests
+        UPDATE collaborator_requests
         SET status = 'rejected',
             updated_at = NOW()
         WHERE id = $1
@@ -204,7 +204,7 @@ pub async fn reject_friend_request(
 
     match row {
         Some(row) => {
-            let request = FriendRequest::try_from(row)
+            let request = CollaboratorRequest::try_from(row)
                 .map_err(|_| sqlx::Error::RowNotFound)?;
 
             Ok(Some(request))
@@ -213,7 +213,7 @@ pub async fn reject_friend_request(
     }
 }
 
-pub async fn friendship_exists(
+pub async fn collaboratorship_exists(
     pool: &PgPool,
     user_a_id: i64,
     user_b_id: i64,
@@ -225,7 +225,7 @@ pub async fn friendship_exists(
         r#"
         SELECT EXISTS (
             SELECT 1
-            FROM friendships
+            FROM collaboratorships
             WHERE user_low_id = $1
               AND user_high_id = $2
         )
@@ -242,8 +242,8 @@ pub async fn friendship_exists(
 pub async fn list_received_pending_requests(
     pool: &PgPool,
     current_user_id: i64,
-) -> Result<Vec<FriendRequest>, sqlx::Error> {
-    let rows = sqlx::query_as::<_, FriendRequestRow>(
+) -> Result<Vec<CollaboratorRequest>, sqlx::Error> {
+    let rows = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
         SELECT
             id,
@@ -253,7 +253,7 @@ pub async fn list_received_pending_requests(
             message,
             created_at,
             updated_at
-        FROM friend_requests
+        FROM collaborator_requests
         WHERE addressee_id = $1
           AND status = 'pending'
         ORDER BY created_at DESC
@@ -267,7 +267,7 @@ pub async fn list_received_pending_requests(
     let mut requests = Vec::with_capacity(rows.len());
 
     for row in rows {
-        let request = FriendRequest::try_from(row)
+        let request = CollaboratorRequest::try_from(row)
             .map_err(|_| sqlx::Error::RowNotFound)?;
 
         requests.push(request);
@@ -276,17 +276,17 @@ pub async fn list_received_pending_requests(
     Ok(requests)
 }
 
-pub async fn list_friends(
+pub async fn list_collaborators(
     pool: &PgPool,
     current_user_id: i64,
-) -> Result<Vec<FriendItem>, sqlx::Error> {
-    let friends = sqlx::query_as::<_, FriendItem>(
+) -> Result<Vec<CollaboratorItem>, sqlx::Error> {
+    let collaborators = sqlx::query_as::<_, CollaboratorItem>(
         r#"
         SELECT
             u.id,
             u.username,
             u.nickname
-        FROM friendships f
+        FROM collaboratorships f
         JOIN users u
           ON u.id = CASE
               WHEN f.user_low_id = $1 THEN f.user_high_id
@@ -301,5 +301,5 @@ pub async fn list_friends(
     .fetch_all(pool)
     .await?;
 
-    Ok(friends)
+    Ok(collaborators)
 }

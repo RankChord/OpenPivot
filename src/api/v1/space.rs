@@ -14,10 +14,10 @@ use crate::{
         CreateSpaceMessageRequest,
         SpaceMessage,
         AddSpaceMemberRequest,
-        SpaceMemberResponse,
+        AddSpaceMemberResponse,
         CreateSpaceRequest,
+        CreateSpaceResponse,
         SpaceMemberRole,
-        SpaceResponse,
     },
     repository::space,
 };

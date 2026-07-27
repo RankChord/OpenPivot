@@ -173,8 +173,8 @@ impl TryFrom<&str> for SpaceMessageStatus {
 
 // 实现空间模型的响应转换方法
 impl Space {
-    pub fn into_response(self) -> SpaceResponse {
-        SpaceResponse {
+    pub fn into_response(self) -> CreateSpaceRequest {
+        CreateSpaceRequest {
             id: self.id,
             name: self.name,
             space_type: self.space_type.as_str().to_string(),
@@ -185,8 +185,8 @@ impl Space {
 
 // 实现空间成员模型的响应转换方法
 impl SpaceMember {
-    pub fn into_response(self) -> SpaceMemberResponse {
-        SpaceMemberResponse {
+    pub fn into_response(self) -> AddSpaceMemberResponse {
+        AddSpaceMemberResponse {
             id: self.id,
             space_id: self.space_id,
             user_id: self.user_id,

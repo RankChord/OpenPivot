@@ -10,25 +10,25 @@ use crate::{
     api::v1::extractors::require_user_id,
     app::AppState,
     error::AppError,
-    models::friend::{CreateFriendRequest, FriendRequestResponse, FriendItem},
-    repository::{friend, user},
+    models::collaborator::{CreateCollaboratorRequest, CollaboratorRequestResponse, CollaboratorItem},
+    repository::{collaborator, user},
 };
 
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/requests", post(create_friend_request))
+        .route("/requests", post(create_collaborator_request))
         .route("/requests", get(list_received_pending_requests))
-        .route("/requests/{id}/accept", post(accept_friend_request))
-        .route("/requests/{id}/reject", post(reject_friend_request))
-        .route("/", get(list_friends))
+        .route("/requests/{id}/accept", post(accept_collaborator_request))
+        .route("/requests/{id}/reject", post(reject_collaborator_request))
+        .route("/", get(list_collaborators))
         
 }
 
-pub async fn create_friend_request(
+pub async fn create_collaborator_request(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(payload): Json<CreateFriendRequest>,
-) -> Result<Json<FriendRequestResponse>, AppError> {
+    Json(payload): Json<CreateCollaboratorRequest>,
+) -> Result<Json<CollaboratorRequestResponse>, AppError> {
     let current_user_id = require_user_id(
         &headers,
         &state.config.auth.jwt_secret,
@@ -46,7 +46,7 @@ pub async fn create_friend_request(
         return Err(AppError::BadRequest);
     }
 
-    let already_friends = friend::friendship_exists(
+    let already_collaborators = collaborator::collaboratorship_exists(
         &state.db,
         current_user_id,
         payload.user_id,
@@ -54,11 +54,11 @@ pub async fn create_friend_request(
     .await
     .map_err(|_| AppError::Internal)?;
 
-    if already_friends {
+    if already_collaborators {
         return Err(AppError::Conflict);
     }
 
-    let pending_request = friend::find_pending_request_between_users(
+    let pending_request = collaborator::find_pending_request_between_users(
         &state.db,
         current_user_id,
         payload.user_id,
@@ -70,7 +70,7 @@ pub async fn create_friend_request(
         return Err(AppError::Conflict);
     }
 
-    let request = friend::create_friend_request(
+    let request = collaborator::create_collaborator_request(
         &state.db,
         current_user_id,
         payload.user_id,
@@ -82,17 +82,17 @@ pub async fn create_friend_request(
     Ok(Json(request.into_response()))
 }
 
-pub async fn accept_friend_request(
+pub async fn accept_collaborator_request(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(request_id): Path<i64>,
-) -> Result<Json<FriendRequestResponse>, AppError> {
+) -> Result<Json<CollaboratorRequestResponse>, AppError> {
     let current_user_id = require_user_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
-    let request = friend::accept_friend_request(
+    let request = collaborator::accept_collaborator_request(
         &state.db,
         request_id,
         current_user_id,
@@ -106,17 +106,17 @@ pub async fn accept_friend_request(
     }
 }
 
-pub async fn reject_friend_request(
+pub async fn reject_collaborator_request(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(request_id): Path<i64>,
-) -> Result<Json<FriendRequestResponse>, AppError> {
+) -> Result<Json<CollaboratorRequestResponse>, AppError> {
     let current_user_id = require_user_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
-    let request = friend::reject_friend_request(
+    let request = collaborator::reject_collaborator_request(
         &state.db,
         request_id,
         current_user_id,
@@ -133,13 +133,13 @@ pub async fn reject_friend_request(
 pub async fn list_received_pending_requests(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<Vec<FriendRequestResponse>>, AppError> {
+) -> Result<Json<Vec<CollaboratorRequestResponse>>, AppError> {
     let current_user_id = require_user_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
-    let requests = friend::list_received_pending_requests(
+    let requests = collaborator::list_received_pending_requests(
         &state.db,
         current_user_id,
     )
@@ -153,18 +153,18 @@ pub async fn list_received_pending_requests(
 
     Ok(Json(response))
 }
-pub async fn list_friends(
+pub async fn list_collaborators(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<Vec<FriendItem>>, AppError> {
+) -> Result<Json<Vec<CollaboratorItem>>, AppError> {
     let current_user_id = require_user_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
-    let friends = friend::list_friends(&state.db, current_user_id)
+    let collaborators = collaborator::list_collaborators(&state.db, current_user_id)
         .await
         .map_err(|_| AppError::Internal)?;
 
-    Ok(Json(friends))
+    Ok(Json(collaborators))
 }
