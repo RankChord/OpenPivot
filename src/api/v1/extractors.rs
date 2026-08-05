@@ -1,4 +1,5 @@
 use axum::http::HeaderMap;
+use uuid::Uuid;
 
 use crate::{
     core::token,
@@ -9,7 +10,7 @@ use crate::{
 pub fn require_user_id(
     headers: &HeaderMap,
     jwt_secret: &str,
-) -> Result<i64, AppError> {
+) -> Result<Uuid, AppError> {
     let auth_header = headers
         .get("authorization")
         .and_then(|v| v.to_str().ok())
@@ -22,5 +23,6 @@ pub fn require_user_id(
     let claims = token::verify_access_token(token, jwt_secret)
         .map_err(|_| AppError::Unauthorized)?;
 
-    Ok(claims.sub)
+    Uuid::parse_str(&claims.sub)
+        .map_err(|_| AppError::Unauthorized)
 }

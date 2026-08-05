@@ -1,12 +1,13 @@
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 // 空间模型
 #[derive(Debug)]
 pub struct Space {
-    pub id: i64,                                // 数据库空间id主键
+    pub id: Uuid,                               // 数据库空间id主键
     pub name: String,                           // 空间名称
     pub space_type: SpaceType,                  // 空间类型 (public, private)
-    pub owner_id: i64,                          // 空间所有者用户id 
+    pub owner_id: Uuid,                         // 空间所有者用户id 
     pub avatar_url: Option<String>,             // 空间头像URL
     pub created_at: OffsetDateTime,             // 创建时间
     pub updated_at: OffsetDateTime,             // 更新时间
@@ -15,9 +16,9 @@ pub struct Space {
 // 空间成员模型
 #[derive(Debug)]
 pub struct SpaceMember {
-    pub id: i64,                                // 数据库空间成员id主键
-    pub space_id: i64,                          // 所属空间id
-    pub user_id: i64,                           // 成员用户id
+    pub id: Uuid,                               // 数据库空间成员id主键
+    pub space_id: Uuid,                         // 所属空间id
+    pub user_id: Uuid,                          // 成员用户id
     pub role: SpaceMemberRole,                  // 成员角色 (owner, admin, member)
     pub joined_at: OffsetDateTime,              // 加入时间
 }
@@ -25,9 +26,9 @@ pub struct SpaceMember {
 // 空间消息模型
 #[derive(Debug, serde::Serialize, sqlx::FromRow)]
 pub struct SpaceMessage {
-    pub id: i64,                                // 数据库空间消息id主键
-    pub space_id: i64,                          // 所属空间id
-    pub sender_id: i64,                         // 发送者用户id
+    pub id: Uuid,                               // 数据库空间消息id主键
+    pub space_id: Uuid,                         // 所属空间id
+    pub sender_id: Uuid,                        // 发送者用户id
     pub content: String,                        // 消息内容
     pub created_at: OffsetDateTime,             // 创建时间
     pub status: String,                         // 消息状态 (sent, delivered, read)
@@ -44,10 +45,10 @@ pub struct CreateSpaceRequest {
 // 空间消息创建请求结构体
 #[derive(Debug, serde::Serialize)]
 pub struct CreateSpaceResponse {
-    pub id: i64,                                // 数据库空间id主键
+    pub id: Uuid,                               // 数据库空间id主键
     pub name: String,                           // 空间名称
     pub space_type: String,                     // 空间类型 (public, private)   
-    pub owner_id: i64,                          // 空间所有者用户id
+    pub owner_id: Uuid,                         // 空间所有者用户id
 }
 
 // 创建空间信息响应结构体
@@ -59,15 +60,15 @@ pub struct CreateSpaceMessageRequest {
 // 空间添加成员请求结构体
 #[derive(Debug, serde::Deserialize)]
 pub struct AddSpaceMemberRequest {
-    pub user_id: i64,                           // 成员用户id
+    pub user_id: Uuid,                          // 成员用户id
 }
 
 // 空间添加成员响应结构体
 #[derive(Debug, serde::Serialize)]
 pub struct AddSpaceMemberResponse {
-    pub id: i64,                                // 数据库空间成员id主键
-    pub space_id: i64,                          // 所属空间id
-    pub user_id: i64,                           // 成员用户id
+    pub id: Uuid,                               // 数据库空间成员id主键
+    pub space_id: Uuid,                         // 所属空间id
+    pub user_id: Uuid,                          // 成员用户id
     pub role: String,                           // 成员角色 (owner, admin, member)
 }
 

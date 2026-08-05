@@ -1,12 +1,13 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use serde::de::{self, MapAccess};
 use std::fmt;
+use uuid::Uuid;
 
 // 登录标识符枚举
 #[derive(Debug)]
 pub enum LoginIdentifier {
     Username(String),
-    Id(i64),
+    Id(Uuid),
 }
 
 /// 注册请求体
@@ -20,7 +21,7 @@ pub struct RegisterRequest {
 // 注册响应体
 #[derive(Debug, Serialize)]
 pub struct RegisterResponse {
-    pub id: i64,                                                             // 用户ID
+    pub id: Uuid,                                                            // 用户ID
     pub username: String,                                                    // 用户名
     pub nickname: String,                                                    // 昵称
 }
@@ -50,7 +51,7 @@ pub struct TokenResponse {
 // 获取当前用户信息响应体
 #[derive(Debug, Serialize)]
 pub struct MeResponse {
-    pub id: i64,                                                             // 用户ID 
+    pub id: Uuid,                                                            // 用户ID 
 }
 
 // 注册请求体验证
@@ -82,7 +83,7 @@ impl<'de> Deserialize<'de> for LoginRequest {
             where
                 M: MapAccess<'de>,
             {
-                let mut id: Option<i64> = None;
+                let mut id: Option<Uuid> = None;
                 let mut username: Option<String> = None;
                 let mut password: Option<String> = None;
 

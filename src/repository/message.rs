@@ -1,17 +1,19 @@
 use sqlx::PgPool;
+use uuid::Uuid;
 
 use crate::models::message::Message;
 
 pub async fn create_message(
     pool: &PgPool,
-    conversation_id: i64,
-    sender_id: i64,
+    conversation_id: Uuid,
+    sender_id: Uuid,
     content: &str,
 ) -> Result<Message, sqlx::Error> {
+    let message_id = Uuid::now_v7();
     let message = sqlx::query_as::<_, Message>(
         r#"
-        INSERT INTO messages (conversation_id, sender_id, content)
-        VALUES ($1, $2, $3)
+        INSERT INTO messages (id, conversation_id, sender_id, content)
+        VALUES ($1, $2, $3, $4)
         RETURNING
             id,
             conversation_id,
@@ -20,6 +22,7 @@ pub async fn create_message(
             created_at
         "#,
     )
+    .bind(message_id)
     .bind(conversation_id)
     .bind(sender_id)
     .bind(content)
@@ -31,7 +34,7 @@ pub async fn create_message(
 
 pub async fn list_messages(
     pool: &PgPool,
-    conversation_id: i64,
+    conversation_id: Uuid,
 ) -> Result<Vec<Message>, sqlx::Error> {
     let messages = sqlx::query_as::<_, Message>(
         r#"

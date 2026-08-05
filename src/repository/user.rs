@@ -1,11 +1,12 @@
 use sqlx::{FromRow, PgPool};
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 use crate::models::user::{User, UserStatus, UserSearchItem};
 
 #[derive(FromRow)]
 struct UserRow {
-    id: i64,
+    id: Uuid,
     status: String,
     username: String,
     nickname: String,
@@ -42,10 +43,11 @@ pub async fn create_user(
     nickname: &str,
     password_hash: &str,
 ) -> Result<User, sqlx::Error> {
+    let user_id = Uuid::now_v7();
     let row = sqlx::query_as::<_, UserRow>(
         r#"
-        INSERT INTO users (username, nickname, password_hash)
-        VALUES ($1, $2, $3)
+        INSERT INTO users (id, username, nickname, password_hash)
+        VALUES ($1, $2, $3, $4)
         RETURNING
             id,
             username,
@@ -57,6 +59,7 @@ pub async fn create_user(
             last_login_at
         "#,
     )
+    .bind(user_id)
     .bind(username)
     .bind(nickname)
     .bind(password_hash)
@@ -105,7 +108,7 @@ pub async fn find_user_by_username(
 
 pub async fn find_user_by_id(
     pool: &PgPool,
-    id: i64,
+    id: Uuid,
 ) -> Result<Option<User>, sqlx::Error> {
     let row = sqlx::query_as::<_, UserRow>(
         r#"
@@ -140,7 +143,7 @@ pub async fn find_user_by_id(
 
 pub async fn update_last_login_at(
     pool: &PgPool,
-    user_id: i64,
+    user_id: Uuid,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
@@ -158,7 +161,7 @@ pub async fn update_last_login_at(
 
 pub async fn search_users(
     pool: &PgPool,
-    current_user_id: i64,
+    current_user_id: Uuid,
     keyword: &str,
 ) -> Result<Vec<UserSearchItem>, sqlx::Error> {
     let pattern = format!("%{}%", keyword);

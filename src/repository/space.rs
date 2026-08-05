@@ -1,5 +1,6 @@
 use sqlx::PgPool;
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 use crate::models::space::{
     Space,
@@ -12,10 +13,10 @@ use crate::models::space::{
 
 #[derive(sqlx::FromRow)]
 struct SpaceRow {
-    id: i64,
+    id: Uuid,
     name: String,
     r#type: String,
-    owner_id: i64,
+    owner_id: Uuid,
     created_at: OffsetDateTime,
     updated_at: OffsetDateTime,
 }
@@ -39,9 +40,9 @@ impl TryFrom<SpaceRow> for Space {
 
 #[derive(sqlx::FromRow)]
 struct SpaceMemberRow {
-    id: i64,
-    space_id: i64,
-    user_id: i64,
+    id: Uuid,
+    space_id: Uuid,
+    user_id: Uuid,
     role: String,
     joined_at: OffsetDateTime,
 }
@@ -64,13 +65,14 @@ impl TryFrom<SpaceMemberRow> for SpaceMember {
 
 pub async fn create_space(
     pool: &PgPool,
-    owner_id: i64,
+    owner_id: Uuid,
     name: &str,
 ) -> Result<Space, sqlx::Error> {
+    let space_id = Uuid::now_v7();
     let row = sqlx::query_as::<_, SpaceRow>(
         r#"
-        INSERT INTO spaces (name, type, owner_id)
-        VALUES ($1, 'group', $2)
+        INSERT INTO spaces (id, name, type, owner_id)
+        VALUES ($1, $2, 'group', $3)
         RETURNING
             id,
             name,
@@ -80,6 +82,7 @@ pub async fn create_space(
             updated_at
         "#,
     )
+    .bind(space_id)
     .bind(name)
     .bind(owner_id)
     .fetch_one(pool)
@@ -93,14 +96,15 @@ pub async fn create_space(
 
 pub async fn add_space_member(
     pool: &PgPool,
-    space_id: i64,
-    user_id: i64,
+    space_id: Uuid,
+    user_id: Uuid,
     role: SpaceMemberRole,
 ) -> Result<SpaceMember, sqlx::Error> {
+    let member_id = Uuid::now_v7();
     let row = sqlx::query_as::<_, SpaceMemberRow>(
         r#"
-        INSERT INTO space_members (space_id, user_id, role)
-        VALUES ($1, $2, $3)
+        INSERT INTO space_members (id, space_id, user_id, role)
+        VALUES ($1, $2, $3, $4)
         ON CONFLICT (space_id, user_id)
         DO UPDATE SET role = space_members.role
         RETURNING
@@ -111,6 +115,7 @@ pub async fn add_space_member(
             joined_at
         "#,
     )
+    .bind(member_id)
     .bind(space_id)
     .bind(user_id)
     .bind(role.as_str())
@@ -125,7 +130,7 @@ pub async fn add_space_member(
 
 pub async fn list_space_members(
     pool: &PgPool,
-    space_id: i64,
+    space_id: Uuid,
 ) -> Result<Vec<SpaceMember>, sqlx::Error> {
     let rows = sqlx::query_as::<_, SpaceMemberRow>(
         r#"
@@ -158,7 +163,7 @@ pub async fn list_space_members(
 
 pub async fn list_my_spaces(
     pool: &PgPool,
-    user_id: i64,
+    user_id: Uuid,
 ) -> Result<Vec<Space>, sqlx::Error> {
     let rows = sqlx::query_as::<_, SpaceRow>(
         r#"
@@ -193,8 +198,8 @@ pub async fn list_my_spaces(
 
 pub async fn is_space_member(
     pool: &PgPool,
-    space_id: i64,
-    user_id: i64,
+    space_id: Uuid,
+    user_id: Uuid,
 ) -> Result<bool, sqlx::Error> {
     let exists = sqlx::query_scalar::<_, bool>(
         r#"
@@ -216,14 +221,15 @@ pub async fn is_space_member(
 
 pub async fn create_space_message(
     pool: &PgPool,
-    space_id: i64,
-    sender_id: i64,
+    space_id: Uuid,
+    sender_id: Uuid,
     content: &str,
 ) -> Result<SpaceMessage, sqlx::Error> {
+    let message_id = Uuid::now_v7();
     let message = sqlx::query_as::<_, SpaceMessage>(
         r#"
-        INSERT INTO space_messages (space_id, sender_id, content)
-        VALUES ($1, $2, $3)
+        INSERT INTO space_messages (id, space_id, sender_id, content)
+        VALUES ($1, $2, $3, $4)
         RETURNING
             id,
             space_id,
@@ -232,6 +238,7 @@ pub async fn create_space_message(
             created_at
         "#,
     )
+    .bind(message_id)
     .bind(space_id)
     .bind(sender_id)
     .bind(content)
@@ -243,7 +250,7 @@ pub async fn create_space_message(
 
 pub async fn list_space_messages(
     pool: &PgPool,
-    space_id: i64,
+    space_id: Uuid,
 ) -> Result<Vec<SpaceMessage>, sqlx::Error> {
     let messages = sqlx::query_as::<_, SpaceMessage>(
         r#"

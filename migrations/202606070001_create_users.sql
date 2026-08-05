@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
     nickname TEXT NOT NULL,
-    avatar_url TEXT NOT NULL,
+    avatar_url TEXT,
     password_hash TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

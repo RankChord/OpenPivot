@@ -5,6 +5,7 @@ use axum::{
     Json,
     Router,
 };
+use uuid::Uuid;
 
 use crate::{
     api::v1::extractors::require_user_id,
@@ -92,7 +93,7 @@ pub async fn list_conversations(
 pub async fn send_message(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Path(conversation_id): Path<i64>,
+    Path(conversation_id): Path<Uuid>,
     Json(payload): Json<SendMessageRequest>,
 ) -> Result<Json<Message>, AppError> {
     let current_user_id = require_user_id(
@@ -131,7 +132,7 @@ pub async fn send_message(
 pub async fn list_messages(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Path(conversation_id): Path<i64>,
+    Path(conversation_id): Path<Uuid>,
 ) -> Result<Json<Vec<Message>>, AppError> {
     let current_user_id = require_user_id(
         &headers,

@@ -1,5 +1,6 @@
 use sqlx::PgPool;
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 
 use crate::models::collaborator::{CollaboratorItem, CollaboratorRequest, CollaboratorRequestStatus};
@@ -7,9 +8,9 @@ use crate::models::collaborator::{CollaboratorItem, CollaboratorRequest, Collabo
 
 #[derive(sqlx::FromRow)]
 struct CollaboratorRequestRow {
-    id: i64,
-    requester_id: i64,
-    addressee_id: i64,
+    id: Uuid,
+    requester_id: Uuid,
+    addressee_id: Uuid,
     status: String,
     message: Option<String>,
     created_at: OffsetDateTime,
@@ -36,14 +37,15 @@ impl TryFrom<CollaboratorRequestRow> for CollaboratorRequest {
 
 pub async fn create_collaborator_request(
     pool: &PgPool,
-    requester_id: i64,
-    addressee_id: i64,
+    requester_id: Uuid,
+    addressee_id: Uuid,
     message: Option<&str>,
 ) -> Result<CollaboratorRequest, sqlx::Error>{
+    let request_id = Uuid::now_v7();
     let row = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
-        INSERT INTO collaborator_requests (requester_id, addressee_id, message)
-        VALUES ($1, $2, $3)
+        INSERT INTO collaborator_requests (id, requester_id, addressee_id, message)
+        VALUES ($1, $2, $3, $4)
         RETURNING
             id,
             requester_id,
@@ -54,6 +56,7 @@ pub async fn create_collaborator_request(
             updated_at
         "#,
     )
+    .bind(request_id)
     .bind(requester_id)
     .bind(addressee_id)
     .bind(message)
@@ -68,8 +71,8 @@ pub async fn create_collaborator_request(
 
 pub async fn find_pending_request_between_users(
     pool: &PgPool,
-    user_a_id: i64,
-    user_b_id: i64,
+    user_a_id: Uuid,
+    user_b_id: Uuid,
 ) -> Result<Option<CollaboratorRequest>, sqlx::Error>{
     let row = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
@@ -109,19 +112,21 @@ pub async fn find_pending_request_between_users(
 
 pub async fn create_collaboratorship(
     pool: &PgPool,
-    user_a_id: i64,
-    user_b_id: i64,
+    user_a_id: Uuid,
+    user_b_id: Uuid,
 ) -> Result<(), sqlx::Error> {
     let user_low_id = user_a_id.min(user_b_id);
     let user_high_id = user_a_id.max(user_b_id);
+    let collaboratorship_id = Uuid::now_v7();
 
     sqlx::query(
         r#"
-        INSERT INTO collaboratorships (user_low_id, user_high_id)
-        VALUES ($1, $2)
+        INSERT INTO collaboratorships (id, user_low_id, user_high_id)
+        VALUES ($1, $2, $3)
         ON CONFLICT (user_low_id, user_high_id) DO NOTHING
         "#,
     )
+    .bind(collaboratorship_id)
     .bind(user_low_id)
     .bind(user_high_id)
     .execute(pool)
@@ -132,8 +137,8 @@ pub async fn create_collaboratorship(
 
 pub async fn accept_collaborator_request(
     pool: &PgPool,
-    request_id: i64,
-    current_user_id: i64,
+    request_id: Uuid,
+    current_user_id: Uuid,
 ) -> Result<Option<CollaboratorRequest>, sqlx::Error> {
     let row = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
@@ -176,8 +181,8 @@ pub async fn accept_collaborator_request(
 
 pub async fn reject_collaborator_request(
     pool: &PgPool,
-    request_id: i64,
-    current_user_id: i64,
+    request_id: Uuid,
+    current_user_id: Uuid,
 ) -> Result<Option<CollaboratorRequest>, sqlx::Error> {
     let row = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
@@ -215,8 +220,8 @@ pub async fn reject_collaborator_request(
 
 pub async fn collaboratorship_exists(
     pool: &PgPool,
-    user_a_id: i64,
-    user_b_id: i64,
+    user_a_id: Uuid,
+    user_b_id: Uuid,
 ) -> Result<bool, sqlx::Error> {
     let user_low_id = user_a_id.min(user_b_id);
     let user_high_id = user_a_id.max(user_b_id);
@@ -241,7 +246,7 @@ pub async fn collaboratorship_exists(
 
 pub async fn list_received_pending_requests(
     pool: &PgPool,
-    current_user_id: i64,
+    current_user_id: Uuid,
 ) -> Result<Vec<CollaboratorRequest>, sqlx::Error> {
     let rows = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
@@ -278,7 +283,7 @@ pub async fn list_received_pending_requests(
 
 pub async fn list_collaborators(
     pool: &PgPool,
-    current_user_id: i64,
+    current_user_id: Uuid,
 ) -> Result<Vec<CollaboratorItem>, sqlx::Error> {
     let collaborators = sqlx::query_as::<_, CollaboratorItem>(
         r#"

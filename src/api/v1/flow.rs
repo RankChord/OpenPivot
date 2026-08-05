@@ -4,6 +4,7 @@ use axum::{
     Json,
     Router,
 };
+use uuid::Uuid;
 
 use crate::{
     api::v1::extractors::require_user_id,
@@ -40,7 +41,7 @@ pub fn routes() -> Router<AppState> {
 pub async fn create_flow(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
-    Path(space_id): Path<i64>,
+    Path(space_id): Path<Uuid>,
     Json(payload): Json<CreateFlowRequest>,
 ) -> Result<Json<FlowResponse>, AppError> {
     let current_user_id = require_user_id(
@@ -76,7 +77,7 @@ pub async fn create_flow(
 pub async fn list_flows(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
-    Path(space_id): Path<i64>,
+    Path(space_id): Path<Uuid>,
 ) -> Result<Json<Vec<FlowResponse>>, AppError> {
     let current_user_id = require_user_id(
         &headers,
@@ -113,7 +114,7 @@ pub async fn list_flows(
 pub async fn start_flow_run(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
-    Path((space_id, flow_id)): Path<(i64, i64)>,
+    Path((space_id, flow_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<StartFlowRunRequest>,
 ) -> Result<Json<StartFlowRunResponse>, AppError> {
     let current_user_id = require_user_id(
@@ -167,7 +168,7 @@ pub async fn start_flow_run(
 pub async fn complete_flow_task(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
-    Path(task_id): Path<i64>,
+    Path(task_id): Path<Uuid>,
     Json(payload): Json<CompleteFlowTaskRequest>,
 ) -> Result<Json<CompleteFlowTaskResponse>, AppError> {
     let current_user_id = require_user_id(

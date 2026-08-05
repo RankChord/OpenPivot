@@ -5,6 +5,7 @@ use axum::{
     Json,
     Router,
 };
+use uuid::Uuid;
 
 use crate::{
     api::v1::extractors::require_user_id,
@@ -85,7 +86,7 @@ pub async fn create_collaborator_request(
 pub async fn accept_collaborator_request(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Path(request_id): Path<i64>,
+    Path(request_id): Path<Uuid>,
 ) -> Result<Json<CollaboratorRequestResponse>, AppError> {
     let current_user_id = require_user_id(
         &headers,
@@ -109,7 +110,7 @@ pub async fn accept_collaborator_request(
 pub async fn reject_collaborator_request(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Path(request_id): Path<i64>,
+    Path(request_id): Path<Uuid>,
 ) -> Result<Json<CollaboratorRequestResponse>, AppError> {
     let current_user_id = require_user_id(
         &headers,

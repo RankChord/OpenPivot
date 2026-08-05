@@ -1,11 +1,12 @@
 use time::OffsetDateTime;
 
 use serde::Deserialize;
+use uuid::Uuid;
 
 // 用户模型
 #[derive(Debug)]
 pub struct User {
-    pub id: i64,                                    // 数据库用户id主键
+    pub id: Uuid,                                   // 数据库用户id主键
     pub username: String,                           // 用户名
     pub nickname: String,                           // 昵称
     pub status: UserStatus,                         // 用户状态 (active, disabled, deleted, pending)
@@ -29,7 +30,7 @@ pub enum UserStatus {
 // 用户搜索结果结构体
 #[derive(Debug, serde::Serialize, sqlx::FromRow)]
 pub struct UserSearchItem {
-    pub id: i64,                                    // 用户ID
+    pub id: Uuid,                                   // 用户ID
     pub username: String,                           // 用户名
     pub nickname: String,                           // 昵称
     pub status: String,                             // 用户状态

@@ -1,5 +1,6 @@
 use sqlx::PgPool;
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 use crate::models::conversation::{
     Conversation,
@@ -8,10 +9,10 @@ use crate::models::conversation::{
 
 #[derive(sqlx::FromRow)]
 struct ConversationRow {
-    id: i64,
+    id: Uuid,
     r#type: String,
-    user_low_id: i64,
-    user_high_id: i64,
+    user_low_id: Uuid,
+    user_high_id: Uuid,
     created_at: OffsetDateTime,
     updated_at: OffsetDateTime,
 }
@@ -35,16 +36,17 @@ impl TryFrom<ConversationRow> for Conversation {
 
 pub async fn create_or_get_direct_conversation(
     pool: &PgPool,
-    user_a_id: i64,
-    user_b_id: i64,
+    user_a_id: Uuid,
+    user_b_id: Uuid,
 ) -> Result<Conversation, sqlx::Error> {
     let user_low_id = user_a_id.min(user_b_id);
     let user_high_id = user_a_id.max(user_b_id);
+    let conversation_id = Uuid::now_v7();
 
     let row = sqlx::query_as::<_, ConversationRow>(
         r#"
-        INSERT INTO conversations (type, user_low_id, user_high_id)
-        VALUES ('direct', $1, $2)
+        INSERT INTO conversations (id, type, user_low_id, user_high_id)
+        VALUES ($1, 'direct', $2, $3)
         ON CONFLICT (user_low_id, user_high_id)
         DO UPDATE SET updated_at = conversations.updated_at
         RETURNING
@@ -56,6 +58,7 @@ pub async fn create_or_get_direct_conversation(
             updated_at
         "#,
     )
+    .bind(conversation_id)
     .bind(user_low_id)
     .bind(user_high_id)
     .fetch_one(pool)
@@ -69,8 +72,8 @@ pub async fn create_or_get_direct_conversation(
 
 pub async fn user_in_conversation(
     pool: &PgPool,
-    conversation_id: i64,
-    user_id: i64,
+    conversation_id: Uuid,
+    user_id: Uuid,
 ) -> Result<bool, sqlx::Error> {
     let exists = sqlx::query_scalar::<_, bool>(
         r#"
@@ -92,7 +95,7 @@ pub async fn user_in_conversation(
 
 pub async fn list_conversations(
     pool: &PgPool,
-    current_user_id: i64,
+    current_user_id: Uuid,
 ) -> Result<Vec<Conversation>, sqlx::Error> {
     let rows = sqlx::query_as::<_, ConversationRow>(
         r#"

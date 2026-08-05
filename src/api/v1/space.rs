@@ -5,6 +5,7 @@ use axum::{
     Json,
     Router,
 };
+use uuid::Uuid;
 
 use crate::{
     api::v1::extractors::require_user_id,
@@ -101,7 +102,7 @@ pub async fn list_my_spaces(
 pub async fn add_space_member(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Path(space_id): Path<i64>,
+    Path(space_id): Path<Uuid>,
     Json(payload): Json<AddSpaceMemberRequest>,
 ) -> Result<Json<SpaceMemberResponse>, AppError> {
     let current_user_id = require_user_id(
@@ -136,7 +137,7 @@ pub async fn add_space_member(
 pub async fn list_space_members(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Path(space_id): Path<i64>,
+    Path(space_id): Path<Uuid>,
 ) -> Result<Json<Vec<SpaceMemberResponse>>, AppError> {
     let current_user_id = require_user_id(
         &headers,
@@ -170,7 +171,7 @@ pub async fn list_space_members(
 pub async fn create_space_message(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Path(space_id): Path<i64>,
+    Path(space_id): Path<Uuid>,
     Json(payload): Json<CreateSpaceMessageRequest>,
 ) -> Result<Json<SpaceMessage>, AppError> {
     let current_user_id = require_user_id(
@@ -211,7 +212,7 @@ pub async fn create_space_message(
 pub async fn list_space_messages(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Path(space_id): Path<i64>,
+    Path(space_id): Path<Uuid>,
 ) -> Result<Json<Vec<SpaceMessage>>, AppError> {
     let current_user_id = require_user_id(
         &headers,

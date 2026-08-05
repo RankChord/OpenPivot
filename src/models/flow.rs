@@ -1,14 +1,15 @@
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 // 流程模型
 #[derive(Debug)]
 pub struct Flow {
-    pub id: i64,                                                        // 流程的唯一标识符
-    pub space_id: i64,                                                  // 流程所属的空间ID
+    pub id: Uuid,                                                       // 流程的唯一标识符
+    pub space_id: Uuid,                                                 // 流程所属的空间ID
     pub name: String,                                                   // 流程名称
     pub description: Option<String>,                                    // 流程描述
-    pub created_by: i64,                                                // 流程创建者的用户ID
+    pub created_by: Uuid,                                               // 流程创建者的用户ID
     pub created_at: OffsetDateTime,                                     // 流程创建时间
     pub updated_at: OffsetDateTime,                                     // 流程更新时间
 }
@@ -16,12 +17,12 @@ pub struct Flow {
 // 流程运行模型
 #[derive(Debug)]
 pub struct FlowRun {
-    pub id: i64,                                                        // 流程运行的唯一标识符
-    pub flow_id: i64,                                                   // 流程运行所属的流程ID 
-    pub space_id: i64,                                                  // 流程运行所属的空间ID
+    pub id: Uuid,                                                       // 流程运行的唯一标识符
+    pub flow_id: Uuid,                                                  // 流程运行所属的流程ID 
+    pub space_id: Uuid,                                                 // 流程运行所属的空间ID
     pub status: FlowRunStatus,                                          // 流程运行的状态
-    pub started_by: i64,                                                // 流程运行的发起者用户ID
-    pub current_task_id: Option<i64>,                                   // 当前正在执行的任务ID
+    pub started_by: Uuid,                                               // 流程运行的发起者用户ID
+    pub current_task_id: Option<Uuid>,                                  // 当前正在执行的任务ID
     pub started_at: OffsetDateTime,                                     // 流程运行的开始时间
     pub completed_at: Option<OffsetDateTime>,                           // 流程运行的完成时间   
 }
@@ -29,27 +30,27 @@ pub struct FlowRun {
 // 流程任务模型
 #[derive(Debug)]
 pub struct FlowTask {
-    pub id: i64,                                                        // 流程任务的唯一标识符
-    pub flow_run_id: i64,                                               // 流程任务所属的流程运行ID
-    pub space_id: i64,                                                  // 流程任务所属的空间ID
-    pub assignee_id: i64,                                               // 流程任务的执行者用户ID
+    pub id: Uuid,                                                       // 流程任务的唯一标识符
+    pub flow_run_id: Uuid,                                              // 流程任务所属的流程运行ID
+    pub space_id: Uuid,                                                 // 流程任务所属的空间ID
+    pub assignee_id: Uuid,                                              // 流程任务的执行者用户ID
     pub title: String,                                                  // 流程任务的标题
     pub description: Option<String>,                                    // 流程任务的描述
     pub status: FlowTaskStatus,                                         // 流程任务的状态
     pub result: Option<String>,                                         // 流程任务的执行结果
     pub created_at: OffsetDateTime,                                     // 流程任务的创建时间
     pub completed_at: Option<OffsetDateTime>,                           // 流程任务的完成时间
-    pub completed_by: Option<i64>,                                      // 流程任务的完成者用户ID
+    pub completed_by: Option<Uuid>,                                     // 流程任务的完成者用户ID
 }
 
 // 流程事件模型
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct FlowEvent {
-    pub id: i64,                                                        // 流程事件的唯一标识符
-    pub flow_run_id: i64,                                               // 流程事件所属的流程运行ID
-    pub space_id: i64,                                                  // 流程事件所属的空间ID
+    pub id: Uuid,                                                       // 流程事件的唯一标识符
+    pub flow_run_id: Uuid,                                              // 流程事件所属的流程运行ID
+    pub space_id: Uuid,                                                 // 流程事件所属的空间ID
     pub event_type: String,                                             // 流程事件的类型
-    pub actor_id: Option<i64>,                                          // 流程事件的触发者用户ID
+    pub actor_id: Option<Uuid>,                                         // 流程事件的触发者用户ID
     pub payload: String,                                                // 流程事件的附加数据
     pub created_at: OffsetDateTime,                                     // 流程事件的创建时间
 }
@@ -64,17 +65,17 @@ pub struct CreateFlowRequest {
 // 流程事件类型枚举
 #[derive(Debug, Serialize)]
 pub struct FlowResponse {
-    pub id: i64,                                                        // 流程的唯一标识符
-    pub space_id: i64,                                                  // 流程所属的空间ID
+    pub id: Uuid,                                                       // 流程的唯一标识符
+    pub space_id: Uuid,                                                 // 流程所属的空间ID
     pub name: String,                                                   // 流程名称
     pub description: Option<String>,                                    // 流程描述
-    pub created_by: i64,                                                // 流程的创建者用户ID
+    pub created_by: Uuid,                                               // 流程的创建者用户ID
 }
 
 // 流程运行请求体
 #[derive(Debug, Deserialize)]
 pub struct StartFlowRunRequest {
-    pub assignee_id: i64,                                               // 流程运行的初始任务执行者用户ID
+    pub assignee_id: Uuid,                                              // 流程运行的初始任务执行者用户ID
     pub task_title: String,                                             // 流程运行的初始任务标题
     pub task_description: Option<String>,                               // 流程运行的初始任务描述
 }
@@ -88,16 +89,16 @@ pub struct CompleteFlowTaskRequest {
 // 流程运行响应体
 #[derive(Debug, Serialize)]
 pub struct StartFlowRunResponse {
-    pub run_id: i64,                                                    // 流程运行的唯一标识符
-    pub task_id: i64,                                                   // 流程运行的初始任务唯一标识符
+    pub run_id: Uuid,                                                   // 流程运行的唯一标识符
+    pub task_id: Uuid,                                                  // 流程运行的初始任务唯一标识符
     pub status: String,                                                 // 流程运行的状态
 }
 
 // 流程运行响应体
 #[derive(Debug, Serialize)]
 pub struct CompleteFlowTaskResponse {
-    pub task_id: i64,                                                   // 流程任务的唯一标识符
-    pub run_id: i64,                                                    // 流程运行的唯一标识符 
+    pub task_id: Uuid,                                                  // 流程任务的唯一标识符
+    pub run_id: Uuid,                                                   // 流程运行的唯一标识符 
     pub status: String,                                                 // 流程任务的状态
 }
 

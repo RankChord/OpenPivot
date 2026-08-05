@@ -1,5 +1,6 @@
 use sqlx::PgPool;
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 use crate::models::flow::{
     Flow,
@@ -13,11 +14,11 @@ use crate::models::flow::{
 
 #[derive(sqlx::FromRow)]
 struct FlowRow {
-    id: i64,
-    space_id: i64,
+    id: Uuid,
+    space_id: Uuid,
     name: String,
     description: Option<String>,
-    created_by: i64,
+    created_by: Uuid,
     created_at: OffsetDateTime,
     updated_at: OffsetDateTime,
 }
@@ -38,15 +39,16 @@ impl From<FlowRow> for Flow {
 
 pub async fn create_flow(
     pool: &PgPool,
-    space_id: i64,
-    created_by: i64,
+    space_id: Uuid,
+    created_by: Uuid,
     name: &str,
     description: Option<&str>,
 ) -> Result<Flow, sqlx::Error> {
+    let flow_id = Uuid::now_v7();
     let row = sqlx::query_as::<_, FlowRow>(
         r#"
-        INSERT INTO flows (space_id, name, description, created_by)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO flows (id, space_id, name, description, created_by)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING
             id,
             space_id,
@@ -57,6 +59,7 @@ pub async fn create_flow(
             updated_at
         "#,
     )
+    .bind(flow_id)
     .bind(space_id)
     .bind(name)
     .bind(description)
@@ -69,7 +72,7 @@ pub async fn create_flow(
 
 pub async fn list_flows_by_space(
     pool: &PgPool,
-    space_id: i64,
+    space_id: Uuid,
 ) -> Result<Vec<Flow>, sqlx::Error> {
     let rows = sqlx::query_as::<_, FlowRow>(
         r#"
@@ -100,12 +103,12 @@ pub async fn list_flows_by_space(
 
 #[derive(sqlx::FromRow)]
 struct FlowRunRow {
-    id: i64,
-    flow_id: i64,
-    space_id: i64,
+    id: Uuid,
+    flow_id: Uuid,
+    space_id: Uuid,
     status: String,
-    started_by: i64,
-    current_task_id: Option<i64>,
+    started_by: Uuid,
+    current_task_id: Option<Uuid>,
     started_at: OffsetDateTime,
     completed_at: Option<OffsetDateTime>,
 }
@@ -132,17 +135,19 @@ impl TryFrom<FlowRunRow> for FlowRun {
 
 pub async fn create_flow_run(
     pool: &PgPool,
-    flow_id: i64,
-    space_id: i64,
-    started_by: i64,
+    flow_id: Uuid,
+    space_id: Uuid,
+    started_by: Uuid,
 ) -> Result<FlowRun, sqlx::Error> {
+    let flow_run_id = Uuid::now_v7();
     let row = sqlx::query_as::<_, FlowRunRow>(
         r#"
-        INSERT INTO flow_runs (flow_id, space_id, status, started_by)
-        VALUES ($1, $2, 'running', $3)
+        INSERT INTO flow_runs (id, flow_id, space_id, status, started_by)
+        VALUES ($1, $2, $3, 'running', $4)
         RETURNING id, flow_id, space_id, status, started_by, current_task_id, started_at, completed_at
         "#,
     )
+    .bind(flow_run_id)
     .bind(flow_id)
     .bind(space_id)
     .bind(started_by)
@@ -154,17 +159,17 @@ pub async fn create_flow_run(
 
 #[derive(sqlx::FromRow)]
 struct FlowTaskRow {
-    id: i64,
-    flow_run_id: i64,
-    space_id: i64,
-    assignee_id: i64,
+    id: Uuid,
+    flow_run_id: Uuid,
+    space_id: Uuid,
+    assignee_id: Uuid,
     title: String,
     description: Option<String>,
     status: String,
     result: Option<String>,
     created_at: OffsetDateTime,
     completed_at: Option<OffsetDateTime>,
-    completed_by: Option<i64>,
+    completed_by: Option<Uuid>,
 }
 
 impl TryFrom<FlowTaskRow> for FlowTask {
@@ -192,15 +197,17 @@ impl TryFrom<FlowTaskRow> for FlowTask {
 
 pub async fn create_flow_task(
     pool: &PgPool,
-    flow_run_id: i64,
-    space_id: i64,
-    assignee_id: i64,
+    flow_run_id: Uuid,
+    space_id: Uuid,
+    assignee_id: Uuid,
     title: &str,
     description: Option<&str>,
 ) -> Result<FlowTask, sqlx::Error> {
+    let task_id = Uuid::now_v7();
     let row = sqlx::query_as::<_, FlowTaskRow>(
         r#"
         INSERT INTO flow_tasks (
+            id,
             flow_run_id,
             space_id,
             assignee_id,
@@ -208,7 +215,7 @@ pub async fn create_flow_task(
             description,
             status
         )
-        VALUES ($1, $2, $3, $4, $5, 'pending')
+        VALUES ($1, $2, $3, $4, $5, $6, 'pending')
         RETURNING
             id,
             flow_run_id,
@@ -223,6 +230,7 @@ pub async fn create_flow_task(
             completed_by
         "#,
     )
+    .bind(task_id)
     .bind(flow_run_id)
     .bind(space_id)
     .bind(assignee_id)
@@ -236,8 +244,8 @@ pub async fn create_flow_task(
 
 pub async fn set_flow_run_current_task(
     pool: &PgPool,
-    flow_run_id: i64,
-    task_id: i64,
+    flow_run_id: Uuid,
+    task_id: Uuid,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
@@ -257,22 +265,24 @@ pub async fn set_flow_run_current_task(
 
 pub async fn append_flow_event(
     pool: &PgPool,
-    flow_run_id: i64,
-    space_id: i64,
+    flow_run_id: Uuid,
+    space_id: Uuid,
     event_type: FlowEventType,
-    actor_id: Option<i64>,
+    actor_id: Option<Uuid>,
     payload: &str,
 ) -> Result<FlowEvent, sqlx::Error> {
+    let event_id = Uuid::now_v7();
     let event = sqlx::query_as::<_, FlowEvent>(
         r#"
         INSERT INTO flow_events (
+            id,
             flow_run_id,
             space_id,
             event_type,
             actor_id,
             payload
         )
-        VALUES ($1, $2, $3, $4, $5::JSONB)
+        VALUES ($1, $2, $3, $4, $5, $6::JSONB)
         RETURNING
             id,
             flow_run_id,
@@ -283,6 +293,7 @@ pub async fn append_flow_event(
             created_at
         "#,
     )
+    .bind(event_id)
     .bind(flow_run_id)
     .bind(space_id)
     .bind(event_type.as_str())
@@ -296,10 +307,10 @@ pub async fn append_flow_event(
 
 pub async fn start_manual_flow_run(
     pool: &PgPool,
-    flow_id: i64,
-    space_id: i64,
-    started_by: i64,
-    assignee_id: i64,
+    flow_id: Uuid,
+    space_id: Uuid,
+    started_by: Uuid,
+    assignee_id: Uuid,
     task_title: &str,
     task_description: Option<&str>,
 ) -> Result<(FlowRun, FlowTask), sqlx::Error> {
@@ -353,8 +364,8 @@ pub async fn start_manual_flow_run(
 
 pub async fn complete_flow_task(
     pool: &PgPool,
-    task_id: i64,
-    completed_by: i64,
+    task_id: Uuid,
+    completed_by: Uuid,
     result: &str,
 ) -> Result<FlowTask, sqlx::Error> {
     let row = sqlx::query_as::<_, FlowTaskRow>(
@@ -392,7 +403,7 @@ pub async fn complete_flow_task(
 
 pub async fn complete_flow_run(
     pool: &PgPool,
-    flow_run_id: i64,
+    flow_run_id: Uuid,
 ) -> Result<FlowRun, sqlx::Error> {
     let row = sqlx::query_as::<_, FlowRunRow>(
         r#"

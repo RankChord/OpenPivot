@@ -1,19 +1,21 @@
 use sqlx::PgPool;
 use time::OffsetDateTime;
+use uuid::Uuid;
 use crate::models::session::UserSession;
 
 pub async fn create_session(
     pool: &PgPool,
-    user_id: i64,
+    user_id: Uuid,
     refresh_token_hash: &str,
     expires_at: OffsetDateTime,
     user_agent: Option<&str>,
     ip_address: Option<&str>,
 ) -> Result<UserSession, sqlx::Error> {
+    let session_id = Uuid::now_v7();
     let session = sqlx::query_as::<_, UserSession>(
         r#"
-        INSERT INTO user_sessions (user_id, refresh_token_hash, expires_at, user_agent, ip_address)
-        VALUES ($1, $2, $3, $4, $5::INET)
+        INSERT INTO user_sessions (id, user_id, refresh_token_hash, expires_at, user_agent, ip_address)
+        VALUES ($1, $2, $3, $4, $5, $6::INET)
         RETURNING
             id,
             user_id,
@@ -26,6 +28,7 @@ pub async fn create_session(
             ip_address::TEXT AS ip_address
         "#,
     )
+    .bind(session_id)
     .bind(user_id)
     .bind(refresh_token_hash)
     .bind(expires_at)
@@ -70,7 +73,7 @@ pub async fn find_session_by_refresh_token_hash(
 
 pub async fn revoke_session(
     pool: &PgPool,
-    session_id: i64,
+    session_id: Uuid,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
@@ -88,7 +91,7 @@ pub async fn revoke_session(
 
 pub async fn revoke_all_sessions_for_user(
     pool: &PgPool,
-    user_id: i64,
+    user_id: Uuid,
 ) -> Result<(), sqlx::Error> {
      sqlx::query(
         r#"

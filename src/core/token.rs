@@ -3,10 +3,11 @@ use sha2::{Digest, Sha256};
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AccessTokenClaims {
-    pub sub: i64,
+    pub sub: String,
     pub exp: i64,
     pub iat: i64,
 }
@@ -23,7 +24,7 @@ pub fn hash_refresh_token(token: &str) -> String {
 }
 
 pub fn create_access_token(
-    user_id: i64,
+    user_id: Uuid,
     jwt_secret: &str,
     ttl_minutes: u64,
 ) -> Result<String, jsonwebtoken::errors::Error> {
@@ -31,7 +32,7 @@ pub fn create_access_token(
     let expires_at = now + time::Duration::minutes(ttl_minutes as i64);
 
     let claims = AccessTokenClaims {
-        sub: user_id,
+        sub: user_id.to_string(),
         iat: now.unix_timestamp(),
         exp: expires_at.unix_timestamp(),
     };
