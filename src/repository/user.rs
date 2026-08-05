@@ -6,10 +6,11 @@ use crate::models::user::{User, UserStatus, UserSearchItem};
 #[derive(FromRow)]
 struct UserRow {
     id: i64,
+    status: String,
     username: String,
     nickname: String,
     password_hash: String,
-    status: String,
+    avatar_url: Option<String>,
     created_at: OffsetDateTime,
     updated_at: OffsetDateTime,
     last_login_at: Option<OffsetDateTime>,
@@ -23,10 +24,11 @@ impl TryFrom<UserRow> for User {
 
         Ok(User {
             id: row.id,
+            status: status,
             username: row.username,
             nickname: row.nickname,
             password_hash: row.password_hash,
-            status,
+            avatar_url: row.avatar_url,
             created_at: row.created_at,
             updated_at: row.updated_at,
             last_login_at: row.last_login_at,

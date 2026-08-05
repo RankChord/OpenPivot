@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
-use serde::de::{self, MapAccess, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
+use serde::de::{self, MapAccess};
 use std::fmt;
 
 // 登录标识符枚举
@@ -42,6 +42,7 @@ pub struct RefreshRequest {
 #[derive(Serialize, Debug)]
 pub struct TokenResponse {
     pub access_token: String,                                                // 访问令牌
+    pub refresh_token: String,                                               // 刷新令牌
     pub token_type: String,                                                  // 令牌类型
     pub expires_in: u64,                                                     // 过期时间
 }
@@ -62,8 +63,7 @@ impl RegisterRequest {
 }
 
 
-// 
-impl<'de> Deserializer<'de> for LoginRequest {
+impl<'de> Deserialize<'de> for LoginRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
