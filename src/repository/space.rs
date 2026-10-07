@@ -31,6 +31,7 @@ impl TryFrom<SpaceRow> for Space {
             id: row.id,
             name: row.name,
             space_type,
+            avatar_url: None, // 目前没有从数据库中获取 avatar_url
             owner_id: row.owner_id,
             created_at: row.created_at,
             updated_at: row.updated_at,

@@ -23,6 +23,7 @@ use crate::{
     repository::space,
 };
 
+// 空间相关的API路由
 pub fn routes() -> Router<AppState> {
     let root_routes = get(list_my_spaces)
         .post(create_space);
@@ -39,22 +40,27 @@ pub fn routes() -> Router<AppState> {
         .route("/{id}/messages", message_routes)
 }
 
+// --------------------- 创建空间 --------------------
 pub async fn create_space(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<CreateSpaceRequest>,
-) -> Result<Json<SpaceResponse>, AppError> {
+) -> Result<Json<CreateSpaceResponse>, AppError> {
+    // 验证用户身份
     let current_user_id = require_user_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
+    // 去掉空格内容
     let name = payload.name.trim();
 
+    // 验证空间名称是否为空
     if name.is_empty() {
         return Err(AppError::BadRequest);
     }
 
+    // 创建空间
     let created_space = space::create_space(
         &state.db,
         current_user_id,
@@ -63,6 +69,7 @@ pub async fn create_space(
     .await
     .map_err(|_| AppError::Internal)?;
 
+    // 将创建者添加为空间成员，角色为Owner
     space::add_space_member(
         &state.db,
         created_space.id,
@@ -72,18 +79,22 @@ pub async fn create_space(
     .await
     .map_err(|_| AppError::Internal)?;
 
+    // 返回创建的空间信息
     Ok(Json(created_space.into_response()))
 }
 
+// --------------------- 获取当前用户的所有空间 --------------------
 pub async fn list_my_spaces(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<Vec<SpaceResponse>>, AppError> {
+) -> Result<Json<Vec<CreateSpaceResponse>>, AppError> {
+    // 验证用户身份
     let current_user_id = require_user_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
+    // 调用空间 Repository，获取当前用户的所有空间
     let spaces = space::list_my_spaces(
         &state.db,
         current_user_id,
@@ -91,25 +102,30 @@ pub async fn list_my_spaces(
     .await
     .map_err(|_| AppError::Internal)?;
 
+    // 将空间列表转换为响应格式
     let response = spaces
         .into_iter()
         .map(|space| space.into_response())
         .collect();
 
+    // 返回空间列表作为 JSON 响应
     Ok(Json(response))
 }
 
+// --------------------- 添加空间成员 --------------------
 pub async fn add_space_member(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(space_id): Path<Uuid>,
     Json(payload): Json<AddSpaceMemberRequest>,
-) -> Result<Json<SpaceMemberResponse>, AppError> {
+) -> Result<Json<AddSpaceMemberResponse>, AppError> {
+    // 验证用户身份
     let current_user_id = require_user_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
+    // 检查当前用户是否是该空间的成员
     let is_member = space::is_space_member(
         &state.db,
         space_id,
@@ -118,10 +134,12 @@ pub async fn add_space_member(
     .await
     .map_err(|_| AppError::Internal)?;
 
+    // 如果当前用户不是该空间的成员，则返回403 Forbidden错误
     if !is_member {
         return Err(AppError::Forbidden);
     }
 
+    // 调用空间 Repository，添加新的空间成员
     let member = space::add_space_member(
         &state.db,
         space_id,
@@ -131,19 +149,23 @@ pub async fn add_space_member(
     .await
     .map_err(|_| AppError::Internal)?;
 
+    // 将添加的成员信息转换为响应格式
     Ok(Json(member.into_response()))
 }
 
+// --------------------- 获取空间成员列表 --------------------
 pub async fn list_space_members(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(space_id): Path<Uuid>,
-) -> Result<Json<Vec<SpaceMemberResponse>>, AppError> {
+) -> Result<Json<Vec<AddSpaceMemberResponse>>, AppError> {
+    // 验证用户身份
     let current_user_id = require_user_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
+    // 检查当前用户是否是该空间的成员
     let is_member = space::is_space_member(
         &state.db,
         space_id,
@@ -152,19 +174,23 @@ pub async fn list_space_members(
     .await
     .map_err(|_| AppError::Internal)?;
 
+    // 如果当前用户不是该空间的成员，则返回403 Forbidden错误
     if !is_member {
         return Err(AppError::Forbidden);
     }
 
+    // 调用空间 Repository，获取空间成员列表
     let members = space::list_space_members(&state.db, space_id)
         .await
         .map_err(|_| AppError::Internal)?;
 
+    // 将空间成员列表转换为响应格式
     let response = members
         .into_iter()
         .map(|member| member.into_response())
         .collect();
-
+        
+    // 返回空间成员列表作为 JSON 响应
     Ok(Json(response))
 }
 

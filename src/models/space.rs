@@ -152,8 +152,8 @@ impl TryFrom<&str> for SpaceMemberRole {
 impl SpaceMessageStatus {
     pub fn as_str(&self) -> &'static str {
         match self {
-            SpaceType::Public => "public",
-            SpaceType::Private => "private",
+            SpaceMessageStatus::Normal => "normal",
+            SpaceMessageStatus::Recalled => "recalled",
         }
     }
 }
@@ -165,8 +165,8 @@ impl TryFrom<&str> for SpaceMessageStatus {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "public" => Ok(SpaceType::Public),
-            "private" => Ok(SpaceType::Private),
+            "normal" => Ok(SpaceMessageStatus::Normal),
+            "recalled" => Ok(SpaceMessageStatus::Recalled),
             _ => Err(()),
         }
     }
@@ -174,8 +174,8 @@ impl TryFrom<&str> for SpaceMessageStatus {
 
 // 实现空间模型的响应转换方法
 impl Space {
-    pub fn into_response(self) -> CreateSpaceRequest {
-        CreateSpaceRequest {
+    pub fn into_response(self) -> CreateSpaceResponse {
+        CreateSpaceResponse {
             id: self.id,
             name: self.name,
             space_type: self.space_type.as_str().to_string(),
