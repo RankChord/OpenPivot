@@ -1,0 +1,25 @@
+[package]
+name = "agent-space-demo"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "A persistent, multi-agent workspace exposed through MCP"
+
+[dependencies]
+axum = "0.8"
+base64 = "0.22"
+hex = "0.4"
+http = "1"
+rmcp = { version = "=3.5.0", features = ["server", "transport-streamable-http-server"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+

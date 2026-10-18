@@ -25,12 +25,15 @@ use crate::{
 
 // 空间相关的API路由
 pub fn routes() -> Router<AppState> {
+    // 根路由，对应空间相关的操作
     let root_routes = get(list_my_spaces)
         .post(create_space);
 
+    // 成员相关的路由
     let member_routes = get(list_space_members)
         .post(add_space_member);
 
+    // 消息相关的路由
     let message_routes = get(list_space_messages)
         .post(create_space_message);
 
@@ -41,7 +44,7 @@ pub fn routes() -> Router<AppState> {
 }
 
 // --------------------- 创建空间 --------------------
-pub async fn create_space(
+async fn create_space(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<CreateSpaceRequest>,
@@ -84,7 +87,7 @@ pub async fn create_space(
 }
 
 // --------------------- 获取当前用户的所有空间 --------------------
-pub async fn list_my_spaces(
+async fn list_my_spaces(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<CreateSpaceResponse>>, AppError> {
@@ -113,7 +116,7 @@ pub async fn list_my_spaces(
 }
 
 // --------------------- 添加空间成员 --------------------
-pub async fn add_space_member(
+async fn add_space_member(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(space_id): Path<Uuid>,
@@ -154,7 +157,7 @@ pub async fn add_space_member(
 }
 
 // --------------------- 获取空间成员列表 --------------------
-pub async fn list_space_members(
+async fn list_space_members(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(space_id): Path<Uuid>,
@@ -194,23 +197,28 @@ pub async fn list_space_members(
     Ok(Json(response))
 }
 
-pub async fn create_space_message(
+// --------------------- 创建空间消息 --------------------
+async fn create_space_message(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(space_id): Path<Uuid>,
     Json(payload): Json<CreateSpaceMessageRequest>,
 ) -> Result<Json<SpaceMessage>, AppError> {
+    // 验证用户身份
     let current_user_id = require_user_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
+    // 去掉空格内容
     let content = payload.content.trim();
 
+    // 验证消息内容是否为空
     if content.is_empty() {
         return Err(AppError::BadRequest);
     }
 
+    // 检查当前用户是否是该空间的成员
     let is_member = space::is_space_member(
         &state.db,
         space_id,
@@ -219,10 +227,12 @@ pub async fn create_space_message(
     .await
     .map_err(|_| AppError::Internal)?;
 
+    // 如果当前用户不是该空间的成员，则返回403 Forbidden错误
     if !is_member {
         return Err(AppError::Forbidden);
     }
 
+    // 创建空间消息
     let message = space::create_space_message(
         &state.db,
         space_id,
@@ -232,19 +242,23 @@ pub async fn create_space_message(
     .await
     .map_err(|_| AppError::Internal)?;
 
+    // 返回创建的空间消息信息
     Ok(Json(message))
 }
 
-pub async fn list_space_messages(
+// --------------------- 获取空间消息列表 --------------------
+async fn list_space_messages(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(space_id): Path<Uuid>,
 ) -> Result<Json<Vec<SpaceMessage>>, AppError> {
+    // 验证用户身份
     let current_user_id = require_user_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
+    // 检查当前用户是否是该空间的成员
     let is_member = space::is_space_member(
         &state.db,
         space_id,
@@ -253,10 +267,12 @@ pub async fn list_space_messages(
     .await
     .map_err(|_| AppError::Internal)?;
 
+    // 如果当前用户不是该空间的成员，则返回403 Forbidden错误
     if !is_member {
         return Err(AppError::Forbidden);
     }
 
+    // 获取空间消息列表
     let messages = space::list_space_messages(
         &state.db,
         space_id,
@@ -264,6 +280,7 @@ pub async fn list_space_messages(
     .await
     .map_err(|_| AppError::Internal)?;
 
+    // 返回空间消息列表作为 JSON 响应
     Ok(Json(messages))
 }
 

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101e36">
+    <title>AgentSpace · 共享工作区</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/task-graph.css">
+    <script type="module" src="/js/app.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="AgentSpace 首页"><span class="brand-mark">A</span><span>AgentSpace<small>共享工作区 · Rust demo</small></span></a>
+        <div class="workspace-label"><span class="live-dot"></span> DEFAULT WORKSPACE</div>
+        <nav id="navigation" aria-label="主导航"></nav>
+        <div class="sidebar-bottom"><div class="sidebar-note">一个工作区，多种 Agent。<br>职责、知识与任务在这里交接。</div><button id="logout" class="sidebar-logout" type="button">断开管理会话</button></div>
+      </aside>
+      <div class="main-shell">
+        <header class="topbar"><span class="breadcrumb">工作区 <span>/</span> <strong id="page-breadcrumb">总览</strong></span><div class="topbar-actions"><span id="connection-status" class="connection-status">尚未连接</span><button id="refresh" type="button" class="button button-quiet">↻ 刷新数据</button></div></header>
+        <main id="main" tabindex="-1"></main>
+        <footer class="footer">AgentSpace Demo <span>Rust · SQLite · MCP · 原生 ES Modules</span></footer>
+      </div>
+    </div>
+    <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
+    <dialog id="login-dialog" class="login-dialog">
+      <form id="login-form" class="login-form">
+        <span class="eyebrow">WORKSPACE CONTROL</span><h1>连接你的共享工作区</h1><p>管理令牌用于控制台。每个 Agent 使用自己的 MCP 令牌访问职责、队列与文件。</p>
+        <label class="field">管理令牌<input id="admin-token" name="token" type="password" autocomplete="off" required value="demo-admin-token"></label>
+        <p class="helper">本地默认值为 demo-admin-token；令牌仅保存在当前标签页会话中。</p><p id="login-error" class="form-error" role="alert"></p>
+        <button class="button button-primary" type="submit">连接工作区 →</button>
+      </form>
+    </dialog>
+  </body>
+</html>

@@ -1,0 +1,121 @@
+/*
+ * 节点只有一个外框：40px 头像圆 → 随姓名长度自适应的胶囊 → 320×360px 内容框。
+ * 宽高与连线端点由同一份 SVG 几何驱动，CSS 不另做 scale 或宽高动画。
+ * foreignObject 保留外框阴影，外框本身裁切名称与内容；手机滚动当前流程。
+ */
+.task-graph { min-width: 0; }
+.task-graph-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 13px 22px; padding: 17px 24px; color: #657a9b; font-size: 11px; border-bottom: 1px solid var(--line); background: #fbfcff; }
+.task-graph-legend > span { display: inline-flex; align-items: center; gap: 8px; }
+.task-graph-legend > small { flex-basis: 100%; color: #8391a7; font-size: 10px; line-height: 1.8; }
+.task-graph-legend-line { display: block; width: 30px; border-top: 2px solid #7186ab; }
+.task-graph-legend-dependency { border-top: 2px dashed #a079bb; }
+.task-graph-legend-identity { border-top: 1px solid #b1bed1; }
+.task-graph-flow { min-width: 0; border-bottom: 1px solid var(--line); }
+.task-graph-flow:last-child { border-bottom: 0; }
+.task-graph-flow-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 24px 12px; }
+.task-graph-flow-heading > div { min-width: 0; }
+.task-graph-flow-number { display: block; color: #8d9bb2; font-size: 9px; letter-spacing: 1px; margin-bottom: 7px; }
+.task-graph-flow-heading h3 { font-size: 13px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
+.task-graph-flow-count { flex-shrink: 0; padding: 5px 8px; background: #f1f4fa; color: #7d90ac; border-radius: 5px; font-size: 10px; }
+.task-graph-flow-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; flex-shrink: 0; gap: 8px; }
+.task-graph-flow-note { padding: 0 24px 10px; font-size: 10px; line-height: 1.8; color: #9b805c; }
+.task-graph-viewport { overflow: auto; max-height: 680px; padding: 0 0 12px; overscroll-behavior: contain; scrollbar-color: #cbd5e6 #f6f8fc; background-color: #fbfcff; background-image: radial-gradient(#e4eaf4 .75px, transparent .75px); background-size: 18px 18px; }
+.task-graph-viewport:focus-visible { outline-offset: -3px; }
+.task-graph-canvas { display: block; max-width: none; }
+.task-graph-canvas foreignObject { overflow: visible; }
+.task-graph-connector { fill: none; stroke: #8195b6; stroke-width: 1.6; transition: stroke .2s, stroke-width .2s; }
+.task-graph-edge-dependency .task-graph-connector { stroke: #a07cbc; stroke-width: 1.7; stroke-dasharray: 6 5; }
+.task-graph-edge-identity .task-graph-connector { stroke: #b8c5d7; stroke-width: 1.2; }
+.task-graph-edge.is-active .task-graph-connector { stroke-width: 2.4; }
+.task-graph-edge-label { fill: #7285a3; font-size: 9px; font-family: inherit; paint-order: stroke; stroke: #fbfcff; stroke-width: 5px; stroke-linejoin: round; }
+.task-graph-edge-dependency .task-graph-edge-label { fill: #9770b3; }
+.task-graph-edge-identity .task-graph-edge-label { fill: #9aa9bd; font-size: 9px; }
+.task-graph-arrow-parent { fill: #8195b6; }
+.task-graph-arrow-dependency { fill: #a07cbc; }
+.task-graph-arrow-identity { fill: #b8c5d7; }
+.task-graph-node-shell { position: relative; width: 100%; height: 100%; }
+.task-graph-morph {
+  --task-status-color: #a0adbf;
+  position: relative; display: flex; flex-direction: column; width: 100%; height: 100%;
+  overflow: hidden; isolation: isolate; border-radius: 20px; background: #fff; color: var(--ink);
+  box-shadow: 0 3px 10px #20385f10;
+  transition: border-radius .42s cubic-bezier(.18, .85, .25, 1.2), box-shadow .24s ease, opacity .18s ease;
+}
+/* 描边不占布局空间，头像中心在三种形态中始终距左上角 20px。 */
+.task-graph-morph::before { content: ''; position: absolute; z-index: 2; inset: 0; border: 1px solid var(--task-status-color); border-radius: inherit; pointer-events: none; transition: border-color .2s ease; }
+.task-graph-morph[data-status="queued"], .task-graph-morph:has(> .task-graph-node[data-status="queued"]) { --task-status-color: #d2a354; }
+.task-graph-morph[data-status="leased"], .task-graph-morph:has(> .task-graph-node[data-status="leased"]) { --task-status-color: #7186df; }
+.task-graph-morph[data-status="blocked"], .task-graph-morph:has(> .task-graph-node[data-status="blocked"]) { --task-status-color: #ab84c4; }
+.task-graph-morph[data-status="completed"], .task-graph-morph:has(> .task-graph-node[data-status="completed"]) { --task-status-color: #54ac8e; }
+.task-graph-morph[data-status="failed"], .task-graph-morph:has(> .task-graph-node[data-status="failed"]) { --task-status-color: #d96d7d; }
+.task-graph-morph[data-status="cancelled"], .task-graph-morph:has(> .task-graph-node[data-status="cancelled"]) { --task-status-color: #a0adbf; }
+.task-graph-morph.is-hovered, .task-graph-morph:focus-within { box-shadow: 0 5px 16px #465fe51c; }
+.task-graph-morph.is-expanded { border-radius: 17px; box-shadow: 0 0 0 3px #465fe50c, 0 9px 25px #30457318; }
+.task-graph-morph.is-context, .task-graph-morph:has(> .task-graph-node.is-context) { opacity: .42; }
+.task-graph-morph:is(.is-hovered, :focus-within):is(.is-context, :has(> .task-graph-node.is-context)) { opacity: .85; }
+.task-graph-morph.is-expanded:is(.is-context, :has(> .task-graph-node.is-context)) { opacity: 1; }
+.task-graph-node, .task-graph-endpoint, .task-graph-missing, .task-graph-reference {
+  position: relative; display: flex; align-items: center; gap: 9px; flex: 0 0 40px;
+  width: 100%; height: 40px; min-width: 0; padding: 4px; border: 0; border-radius: inherit;
+  background: transparent; color: inherit; text-align: left;
+}
+.task-graph-morph.is-expanded > .task-graph-node { padding-right: 43px; border-radius: 17px 17px 0 0; background: #f8faff; box-shadow: inset 0 -1px #eef2f8; }
+.task-graph-node:focus-visible, .task-graph-endpoint:focus-visible, .task-graph-missing:focus-visible, .task-graph-reference:focus-visible { outline-offset: -3px; }
+.task-graph-avatar { position: relative; display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; font-size: 14px; font-weight: 600; transition: transform .22s cubic-bezier(.2, .8, .2, 1.4); }
+.task-graph-avatar.avatar-muted { background: #eff2f6; color: #91a0b6; }
+.task-graph-morph.is-hovered:not(.is-expanded) > :is(.task-graph-node, .task-graph-endpoint, .task-graph-missing, .task-graph-reference) > .task-graph-avatar { animation: task-graph-avatar-settle .42s ease-out; }
+:is(.task-graph-node, .task-graph-reference):active > .task-graph-avatar { transform: scale(.92); }
+.task-graph-name { display: block; flex: 1; min-width: 0; padding-right: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #526987; font-size: 11px; font-weight: 550; opacity: 0; visibility: hidden; transform: translateX(-8px); transition: opacity .16s ease, transform .3s cubic-bezier(.18, .85, .25, 1.2), visibility 0s linear .16s; }
+.task-graph-morph:is(.is-hovered, .is-expanded) .task-graph-name { opacity: 1; visibility: visible; transform: translateX(0); transition-delay: .05s, 0s, 0s; }
+.task-graph-state-mark { position: absolute; left: 25px; top: 25px; display: grid; place-items: center; width: 12px; height: 12px; border: 1.5px solid #fff; border-radius: 50%; background: var(--task-status-color); color: #fff; font-size: 8px; font-weight: 700; line-height: 1; }
+.task-graph-node[data-status="leased"] > .task-graph-state-mark { animation: task-graph-pulse 2.8s ease-out infinite; }
+.task-graph-node-shell:is(.is-initiator, .is-recipient) .task-graph-morph { --task-status-color: #c2cede; background: #f7f9fd; }
+.task-graph-node-shell.is-recipient .task-graph-morph { --task-status-color: #b5d8ca; background: #f3f9f6; }
+.task-graph-node-shell.is-initiator .task-graph-morph::before { border-style: dashed; }
+.task-graph-node-shell.is-reference .task-graph-morph { background: #f5f8fc; }
+.task-graph-node-shell.is-reference .task-graph-morph::before { border-style: dashed; }
+.task-graph-endpoint .task-graph-avatar { opacity: .85; }
+.task-graph-morph:has(> .task-graph-missing) { --task-status-color: #c9d4e5; background: #f2f5fa; color: #9aabc3; }
+.task-graph-morph:has(> .task-graph-missing)::before { border-style: dashed; }
+/* 正文留在同一个外框里，横向展开后才逐渐显露；收起立即停用内容交互。 */
+.task-graph-morph > :is(.task-graph-summary-heading, .task-graph-summary-stats, .task-graph-summary-body, .task-graph-summary-footer, .task-graph-summary-close) { opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(-8px); transition: opacity .14s ease, transform .3s cubic-bezier(.18, .85, .25, 1.2), visibility 0s linear .14s; }
+.task-graph-morph.is-expanded > :is(.task-graph-summary-heading, .task-graph-summary-stats, .task-graph-summary-body, .task-graph-summary-footer, .task-graph-summary-close) { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0); transition-delay: .09s, .04s, 0s; animation: task-graph-content-reveal .34s cubic-bezier(.18, .85, .25, 1.2) .08s both; }
+/* author 的 flex/grid 样式不能覆盖 hidden；隐藏内容也不会占据胶囊布局。 */
+.task-graph-morph > [hidden] { display: none !important; }
+.task-graph-summary-heading { flex: 0 0 auto; min-width: 0; margin: 10px 16px; }
+.task-graph-summary-heading > small { display: block; color: #8a99b0; font-size: 10px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.task-graph-summary-heading h3 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-top: 4px; overflow: hidden; color: #415674; font-size: 13px; font-weight: 650; line-height: 1.6; overflow-wrap: anywhere; }
+.task-graph-summary-close { position: absolute; z-index: 3; top: 6px; right: 8px; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: #edf2fb; color: #8a99b1; font-size: 19px; }
+.task-graph-summary-close:hover { background: #e6ecf9; color: #6279c4; }
+.task-graph-summary-close:focus-visible { outline-offset: -1px; }
+.task-graph-summary-stats { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; gap: 8px; margin: 0 16px 10px; color: #91a0b5; font-size: 10px; }
+.task-graph-status { gap: 4px; padding: 6px 7px; font-size: 10px; }
+.task-graph-status.status-unknown { background: #f0f2f6; color: #8592a6; }
+.task-graph-summary-body { flex: 1; min-height: 0; margin: 0 16px; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: #d4ddeb #fff; }
+.task-graph-summary-section { margin-bottom: 14px; }
+.task-graph-summary-section h4 { color: #98a6bd; font-size: 10px; font-weight: 500; margin-bottom: 6px; }
+.task-graph-summary-prompt, .task-graph-summary-result { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; color: #6c7f9c; font-size: 11px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.task-graph-summary-prompt { padding: 9px 11px; border-radius: 8px; background: #f6f8fc; }
+.task-graph-summary-result { -webkit-line-clamp: 2; }
+.task-graph-summary-people { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 0; padding-top: 2px; }
+.task-graph-summary-people > div { min-width: 0; }
+.task-graph-summary-people dt { margin-bottom: 4px; color: #a3afc1; font-size: 9px; }
+.task-graph-summary-people dd { margin: 0; color: #7b8da8; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-graph-summary-footer { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; gap: 14px; margin: 10px 16px 14px; padding-top: 10px; border-top: 1px solid #eef2f8; }
+.task-graph-summary-footer code { min-width: 0; color: #a3aec0; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-graph-summary-footer .button { flex-shrink: 0; border-radius: 8px; }
+@keyframes task-graph-pulse { 0%, 100% { box-shadow: 0 0 0 0 #7186df00; } 30% { box-shadow: 0 0 0 3px #7186df24; } 70% { box-shadow: 0 0 0 5px #7186df00; } }
+@keyframes task-graph-avatar-settle { 0% { transform: scale(.94); } 46% { transform: scale(1.065); } 73% { transform: scale(.99); } 100% { transform: scale(1); } }
+@keyframes task-graph-content-reveal { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 760px) {
+  .task-graph-legend { padding: 15px 20px; gap: 11px 15px; font-size: 10px; }
+  .task-graph-legend > small { font-size: 9px; }
+  .task-graph-flow-heading { padding: 18px 20px 12px; }
+  .task-graph-flow-meta { max-width: 132px; gap: 5px; }
+  .task-graph-flow-note { padding-left: 20px; padding-right: 20px; }
+  .task-graph-viewport { max-height: 600px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .task-graph-viewport { scroll-behavior: auto; }
+  .task-graph-morph, .task-graph-morph::before, .task-graph-avatar, .task-graph-name, .task-graph-state-mark, .task-graph-morph > :is(.task-graph-summary-heading, .task-graph-summary-stats, .task-graph-summary-body, .task-graph-summary-footer, .task-graph-summary-close), .task-graph-connector { animation: none !important; transition: none !important; }
+}
