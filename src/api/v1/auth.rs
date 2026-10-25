@@ -19,48 +19,58 @@ use axum::{
 
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/register", post(register))
-        .route("/login", post(login))
-        .route("/refresh", post(refresh))
-        .route("/logout", post(logout))
-        .route("/me", get(me))
+        .route("/register", post(register))                 // 注册接口
+        .route("/login", post(login))                       // 登录接口
+        .route("/refresh", post(refresh))                   // 刷新令牌
+        .route("/logout", post(logout))                     // 登出令牌
+        .route("/me", get(me))                              // 获取个人信息
 }
 
 // --------------------- 注册函数 --------------------
 pub async fn register(
     State(state): State<AppState>,
     Json(payload): Json<RegisterRequest>,
-) -> Result<Json<RegisterResponse>, AppError> {
+) -> Result<(StatusCode, Json<RegisterResponse>), AppError> {
     // 验证请求体
-    payload.validate().then_some(()).ok_or(AppError::BadRequest)?;
+    payload.validate().map_err(|msg| AppError::Invalid(msg))?;
 
-    // 检查用户名是否已存在
-    user::find_user_by_username(&state.db, &payload.username)
+    let RegisterRequest {
+        username,
+        nickname,
+        password,
+    } = payload;
+
+    // 用户名统一小写，避免 Alice / alice 形成两个账号
+    let username = username.to_ascii_lowercase();
+
+    // Argon2 是 CPU/内存密集型操作，交给阻塞线程池，避免占死 tokio worker
+    let password_hash = tokio::task::spawn_blocking(move || password::hash_password(&password))
         .await
-        .map_err(|_| AppError::Internal)?
-        .map(|_| AppError::Conflict)
-        .map_or(Ok(()), Err)?;
+        .map_err(|err| { eprintln!("[auth] password hash task failed: {err}"); AppError::Internal })?
+        .map_err(|err| { eprintln!("[auth] password hash failed: {err}"); AppError::Internal })?;
 
-    // 密码哈希
-    let password_hash = password::hash_password(&payload.password)
-        .map_err(|_| AppError::Internal)?;
-
-    // 创建用户
-    let created_user = user::create_user(
-        &state.db,
-        &payload.username,
-        &payload.nickname,
-        &password_hash,
-    )
-    .await
-    .map_err(|_| AppError::Internal)?;
+    // 唯一性交给数据库唯一约束，不做 SELECT 预检查，避免并发下退化成 500
+    let created_user = user::create_user(&state.db, &username, &nickname, &password_hash)
+        .await
+        .map_err(|err| match &err {
+            sqlx::Error::Database(db) if db.is_unique_violation() => {
+                AppError::Conflict("username already taken")
+            }
+            _ => {
+                eprintln!("[auth] create user failed: {err:?}");
+                AppError::Internal
+            }
+        })?;
 
     // 返回注册响应
-    Ok(Json(RegisterResponse {
-        id: created_user.id,
-        username: created_user.username,
-        nickname: created_user.nickname,
-    }))
+    Ok((
+        StatusCode::CREATED,
+        Json(RegisterResponse {
+            id: created_user.id,
+            username: created_user.username,
+            nickname: created_user.nickname,
+        }),
+    ))
 }
 
 // --------------------- 登录函数 --------------------
@@ -69,12 +79,14 @@ pub async fn login(
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<TokenResponse>, AppError> {
     // 验证请求体
-    payload.validate().then_some(()).ok_or(AppError::BadRequest)?;
+    payload.validate().map_err(|msg| AppError::Invalid(msg))?;
 
     // 获取用户信息
     let authenticated_user = match &payload.identifier {
         LoginIdentifier::Username(username) => {
-            user::find_user_by_username(&state.db, username).await
+            // 与注册保持一致，统一按小写查询
+            let normalized = username.to_ascii_lowercase();
+            user::find_user_by_username(&state.db, &normalized).await
         }
         LoginIdentifier::Id(user_id) => {
             user::find_user_by_id(&state.db, *user_id).await

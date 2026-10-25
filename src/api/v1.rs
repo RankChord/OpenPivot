@@ -3,8 +3,8 @@ pub mod user;
 pub mod space;
 pub mod extractors;
 // pub mod flow;
-// pub mod friend;
-// pub mod system;
+pub mod collaborator;
+pub mod system;
 // pub mod conversation;
 
 use axum::Router;
@@ -15,8 +15,8 @@ pub fn routes() -> Router<AppState> {
         // .merge(flow::routes())
         .nest("/auth", auth::routes())
         .nest("/users", user::routes())
-        .nest("/space", space::routes())
-        // .nest("/system", system::routes())
-        // .nest("/friends", friend::routes())
+        // .nest("/space", space::routes())
+        .nest("/system", system::routes())
+        .nest("/collaborator", collaborator::routes())
         // .nest("/conversations", conversation::routes())
 }

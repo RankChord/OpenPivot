@@ -12,6 +12,7 @@ pub enum LoginIdentifier {
 
 /// 注册请求体
 #[derive(Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct RegisterRequest {
     pub nickname: String,                                                    // 昵称
     pub username: String,                                                    // 用户名
@@ -56,10 +57,11 @@ pub struct MeResponse {
 
 // 注册请求体验证
 impl RegisterRequest {
-    pub fn validate(&self) -> bool {
-        validate_username(&self.username)
-            && validate_password(&self.password)
-            && validate_nickname(&self.nickname)
+    pub fn validate(&self) -> Result<(), &'static str> {
+        validate_username(&self.username)?;
+        validate_nickname(&self.nickname)?;
+        validate_password(&self.password)?;
+        Ok(())
     }
 }
 
@@ -129,31 +131,60 @@ impl<'de> Deserialize<'de> for LoginRequest {
 
 // 登录请求体验证          
 impl LoginRequest {
-    pub fn validate(&self) -> bool {
+    pub fn validate(&self) -> Result<(), &'static str> {
         match &self.identifier {
-            LoginIdentifier::Username(u) => validate_username(u) && validate_password(&self.password),
-            LoginIdentifier::Id(_) => validate_password(&self.password),
+            LoginIdentifier::Username(u) => validate_username(u)?,
+            LoginIdentifier::Id(_) => {}
         }
+        validate_password(&self.password)
     }
 }
 
-// 刷新令牌请求体验证
-fn validate_username(username: &str) -> bool {
+// 用户名验证
+fn validate_username(username: &str) -> Result<(), &'static str> {
+    // 检查用户名长度
     let len = username.chars().count();
 
-    len >= 3
-        && len <= 16
-        && username.chars().all(|c| c.is_ascii_alphanumeric())
+    // 检查用户名长度是否在3到16个字符之间
+    if !(3..=16).contains(&len) {
+        return Err("username must be 3-16 characters long");
+    }
+
+    // 检查用户名是否只包含 ASCII 字母和数字
+    if !username.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err("username may only contain ASCII letters and digits");
+    }
+
+    Ok(())
 }
 
 // 密码验证
-fn validate_password(password: &str) -> bool {
-    password.chars().count() >= 8
+fn validate_password(password: &str) -> Result<(), &'static str> {
+    // 检查密码长度
+    let len = password.chars().count();
+
+    // 检查密码长度是否在8到128个字符之间
+    if !(8..=128).contains(&len) {
+        return Err("password must be 8-128 characters long");
+    }
+
+    Ok(())
 }
 
 // 昵称验证
-fn validate_nickname(nickname: &str) -> bool {
+fn validate_nickname(nickname: &str) -> Result<(), &'static str> {
+    // 检查昵称长度
     let len = nickname.chars().count();
-    len >= 1 && len <= 64
-}
 
+    // 检查昵称长度是否在1到64个字符之间
+    if !(1..=64).contains(&len) {
+        return Err("nickname must be 1-64 characters long");
+    }
+
+    // 检查昵称是否只包含 ASCII 字符
+    if nickname.chars().any(|c| c.is_control()) {
+        return Err("nickname must not contain control characters");
+    }
+
+    Ok(())
+}
