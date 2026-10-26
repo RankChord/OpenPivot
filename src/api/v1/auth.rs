@@ -32,37 +32,51 @@ pub async fn register(
     Json(payload): Json<RegisterRequest>,
 ) -> Result<(StatusCode, Json<RegisterResponse>), AppError> {
     // 验证请求体
-    payload.validate().map_err(|msg| AppError::Invalid(msg))?;
-
+    payload.validate().map_err(AppError::Invalid)?;
+    
     let RegisterRequest {
         username,
         nickname,
         password,
     } = payload;
 
-    // 用户名统一小写，避免 Alice / alice 形成两个账号
+    // 用户名统一小写，避免 Alice 和 alice 被当成两个账号
     let username = username.to_ascii_lowercase();
 
-    // Argon2 是 CPU/内存密集型操作，交给阻塞线程池，避免占死 tokio worker
-    let password_hash = tokio::task::spawn_blocking(move || password::hash_password(&password))
-        .await
-        .map_err(|err| { eprintln!("[auth] password hash task failed: {err}"); AppError::Internal })?
-        .map_err(|err| { eprintln!("[auth] password hash failed: {err}"); AppError::Internal })?;
+    // Argon2 是 CPU/内存密集型操作，交给阻塞线程池
+    let password_hash = tokio::task::spawn_blocking(move || {
+        password::hash_password(&password)
+    })
+    .await
+    .map_err(|err| {
+        eprintln!("[auth] password hash task failed: {err}");
+        AppError::Internal("password hash task failed")
+    })?
+    .map_err(|err| {
+        eprintln!("[auth] password hash failed: {err}");
+        AppError::Internal("password hashing failed")
+    })?;
 
-    // 唯一性交给数据库唯一约束，不做 SELECT 预检查，避免并发下退化成 500
-    let created_user = user::create_user(&state.db, &username, &nickname, &password_hash)
-        .await
-        .map_err(|err| match &err {
-            sqlx::Error::Database(db) if db.is_unique_violation() => {
-                AppError::Conflict("username already taken")
-            }
-            _ => {
-                eprintln!("[auth] create user failed: {err:?}");
-                AppError::Internal
-            }
-        })?;
+    // 创建用户
+    let created_user = user::create_user(
+        &state.db,
+        &username,
+        &nickname,
+        &password_hash,
+    )
+    .await
+    .map_err(|err| match &err {
+        sqlx::Error::Database(db) if db.is_unique_violation() => {
+            AppError::Conflict("username already taken")
+        }
 
-    // 返回注册响应
+        _ => {
+            eprintln!("[auth] create user failed: {err:?}");
+            AppError::Internal("user creation failed")
+        }
+    })?;
+
+    // 返回注册成功响应
     Ok((
         StatusCode::CREATED,
         Json(RegisterResponse {
@@ -79,7 +93,7 @@ pub async fn login(
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<TokenResponse>, AppError> {
     // 验证请求体
-    payload.validate().map_err(|msg| AppError::Invalid(msg))?;
+    payload.validate().map_err(AppError::Invalid)?;
 
     // 获取用户信息
     let authenticated_user = match &payload.identifier {
