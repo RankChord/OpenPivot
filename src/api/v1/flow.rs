@@ -7,7 +7,7 @@ use axum::{
 use uuid::Uuid;
 
 use crate::{
-    api::v1::extractors::require_user_id,
+    api::v1::extractors::require_actor_id,
     app::AppState,
     error::AppError,
     models::flow::{
@@ -44,7 +44,7 @@ pub async fn create_flow(
     Path(space_id): Path<Uuid>,
     Json(payload): Json<CreateFlowRequest>,
 ) -> Result<Json<FlowResponse>, AppError> {
-    let current_user_id = require_user_id(
+    let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
@@ -52,7 +52,7 @@ pub async fn create_flow(
     let is_member = space::is_space_member(
         &state.db,
         space_id,
-        current_user_id,
+        current_actor_id,
     )
     .await
     .map_err(|_| AppError::Internal)?;
@@ -64,7 +64,7 @@ pub async fn create_flow(
     let flow = flow::create_flow(
         &state.db,
         space_id,
-        current_user_id,
+        current_actor_id,
         &payload.name,
         payload.description.as_deref(),
     )
@@ -79,7 +79,7 @@ pub async fn list_flows(
     headers: axum::http::HeaderMap,
     Path(space_id): Path<Uuid>,
 ) -> Result<Json<Vec<FlowResponse>>, AppError> {
-    let current_user_id = require_user_id(
+    let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
@@ -87,7 +87,7 @@ pub async fn list_flows(
     let is_member = space::is_space_member(
         &state.db,
         space_id,
-        current_user_id,
+        current_actor_id,
     )
     .await
     .map_err(|_| AppError::Internal)?;
@@ -117,7 +117,7 @@ pub async fn start_flow_run(
     Path((space_id, flow_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<StartFlowRunRequest>,
 ) -> Result<Json<StartFlowRunResponse>, AppError> {
-    let current_user_id = require_user_id(
+    let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
@@ -125,7 +125,7 @@ pub async fn start_flow_run(
     let is_member = space::is_space_member(
         &state.db,
         space_id,
-        current_user_id,
+        current_actor_id,
     )
     .await
     .map_err(|_| AppError::Internal)?;
@@ -150,7 +150,7 @@ pub async fn start_flow_run(
         &state.db,
         flow_id,
         space_id,
-        current_user_id,
+        current_actor_id,
         payload.assignee_id,
         &payload.task_title,
         payload.task_description.as_deref(),
@@ -171,7 +171,7 @@ pub async fn complete_flow_task(
     Path(task_id): Path<Uuid>,
     Json(payload): Json<CompleteFlowTaskRequest>,
 ) -> Result<Json<CompleteFlowTaskResponse>, AppError> {
-    let current_user_id = require_user_id(
+    let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
@@ -179,7 +179,7 @@ pub async fn complete_flow_task(
     let task = flow::complete_flow_task(
         &state.db,
         task_id,
-        current_user_id,
+        current_actor_id,
         &payload.result,
     )
     .await
@@ -190,7 +190,7 @@ pub async fn complete_flow_task(
         task.flow_run_id,
         task.space_id,
         crate::models::flow::FlowEventType::TaskCompleted,
-        Some(current_user_id),
+        Some(current_actor_id),
         "{}",
     )
     .await
@@ -204,7 +204,7 @@ pub async fn complete_flow_task(
     space::create_space_message(
         &state.db,
         task.space_id,
-        current_user_id,
+        current_actor_id,
         &message_content,
     )
     .await
@@ -215,7 +215,7 @@ pub async fn complete_flow_task(
         task.flow_run_id,
         task.space_id,
         crate::models::flow::FlowEventType::SpaceNotified,
-        Some(current_user_id),
+        Some(current_actor_id),
         "{}",
     )
     .await
@@ -233,7 +233,7 @@ pub async fn complete_flow_task(
         task.flow_run_id,
         task.space_id,
         crate::models::flow::FlowEventType::FlowCompleted,
-        Some(current_user_id),
+        Some(current_actor_id),
         "{}",
     )
     .await

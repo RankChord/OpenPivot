@@ -43,7 +43,7 @@ impl TryFrom<SpaceRow> for Space {
 struct SpaceMemberRow {
     id: Uuid,
     space_id: Uuid,
-    user_id: Uuid,
+    actor_id: Uuid,
     role: String,
     joined_at: OffsetDateTime,
 }
@@ -57,7 +57,7 @@ impl TryFrom<SpaceMemberRow> for SpaceMember {
         Ok(SpaceMember {
             id: row.id,
             space_id: row.space_id,
-            user_id: row.user_id,
+            actor_id: row.actor_id,
             role,
             joined_at: row.joined_at,
         })
@@ -98,27 +98,27 @@ pub async fn create_space(
 pub async fn add_space_member(
     pool: &PgPool,
     space_id: Uuid,
-    user_id: Uuid,
+    actor_id: Uuid,
     role: SpaceMemberRole,
 ) -> Result<SpaceMember, sqlx::Error> {
     let member_id = Uuid::now_v7();
     let row = sqlx::query_as::<_, SpaceMemberRow>(
         r#"
-        INSERT INTO space_members (id, space_id, user_id, role)
+        INSERT INTO space_members (id, space_id, actor_id, role)
         VALUES ($1, $2, $3, $4)
-        ON CONFLICT (space_id, user_id)
+        ON CONFLICT (space_id, actor_id)
         DO UPDATE SET role = space_members.role
         RETURNING
             id,
             space_id,
-            user_id,
+            actor_id,
             role,
             joined_at
         "#,
     )
     .bind(member_id)
     .bind(space_id)
-    .bind(user_id)
+    .bind(actor_id)
     .bind(role.as_str())
     .fetch_one(pool)
     .await?;
@@ -138,7 +138,7 @@ pub async fn list_space_members(
         SELECT
             id,
             space_id,
-            user_id,
+            actor_id,
             role,
             joined_at
         FROM space_members
@@ -164,7 +164,7 @@ pub async fn list_space_members(
 
 pub async fn list_my_spaces(
     pool: &PgPool,
-    user_id: Uuid,
+    actor_id: Uuid,
 ) -> Result<Vec<Space>, sqlx::Error> {
     let rows = sqlx::query_as::<_, SpaceRow>(
         r#"
@@ -177,11 +177,11 @@ pub async fn list_my_spaces(
             s.updated_at
         FROM spaces s
         JOIN space_members sm ON sm.space_id = s.id
-        WHERE sm.user_id = $1
+        WHERE sm.actor_id = $1
         ORDER BY s.updated_at DESC
         "#,
     )
-    .bind(user_id)
+    .bind(actor_id)
     .fetch_all(pool)
     .await?;
 
@@ -200,7 +200,7 @@ pub async fn list_my_spaces(
 pub async fn is_space_member(
     pool: &PgPool,
     space_id: Uuid,
-    user_id: Uuid,
+    actor_id: Uuid,
 ) -> Result<bool, sqlx::Error> {
     let exists = sqlx::query_scalar::<_, bool>(
         r#"
@@ -208,12 +208,12 @@ pub async fn is_space_member(
             SELECT 1
             FROM space_members
             WHERE space_id = $1
-              AND user_id = $2
+              AND actor_id = $2
         )
         "#,
     )
     .bind(space_id)
-    .bind(user_id)
+    .bind(actor_id)
     .fetch_one(pool)
     .await?;
 

@@ -69,10 +69,10 @@ pub async fn create_collaborator_request(
     Ok(request)
 }
 
-pub async fn find_pending_request_between_users(
+pub async fn find_pending_request_between_actors(
     pool: &PgPool,
-    user_a_id: Uuid,
-    user_b_id: Uuid,
+    actor_a_id: Uuid,
+    actor_b_id: Uuid,
 ) -> Result<Option<CollaboratorRequest>, sqlx::Error>{
     let row = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
@@ -94,8 +94,8 @@ pub async fn find_pending_request_between_users(
         LIMIT 1
         "#,
     )
-    .bind(user_a_id)
-    .bind(user_b_id)
+    .bind(actor_a_id)
+    .bind(actor_b_id)
     .fetch_optional(pool)
     .await?;
 
@@ -112,23 +112,23 @@ pub async fn find_pending_request_between_users(
 
 pub async fn create_collaboratorship(
     pool: &PgPool,
-    user_a_id: Uuid,
-    user_b_id: Uuid,
+    actor_a_id: Uuid,
+    actor_b_id: Uuid,
 ) -> Result<(), sqlx::Error> {
-    let user_low_id = user_a_id.min(user_b_id);
-    let user_high_id = user_a_id.max(user_b_id);
+    let actor_low_id = actor_a_id.min(actor_b_id);
+    let actor_high_id = actor_a_id.max(actor_b_id);
     let collaboratorship_id = Uuid::now_v7();
 
     sqlx::query(
         r#"
-        INSERT INTO collaboratorships (id, user_low_id, user_high_id)
+        INSERT INTO collaboratorships (id, actor_low_id, actor_high_id)
         VALUES ($1, $2, $3)
-        ON CONFLICT (user_low_id, user_high_id) DO NOTHING
+        ON CONFLICT (actor_low_id, actor_high_id) DO NOTHING
         "#,
     )
     .bind(collaboratorship_id)
-    .bind(user_low_id)
-    .bind(user_high_id)
+    .bind(actor_low_id)
+    .bind(actor_high_id)
     .execute(pool)
     .await?;
 
@@ -138,7 +138,7 @@ pub async fn create_collaboratorship(
 pub async fn accept_collaborator_request(
     pool: &PgPool,
     request_id: Uuid,
-    current_user_id: Uuid,
+    current_actor_id: Uuid,
 ) -> Result<Option<CollaboratorRequest>, sqlx::Error> {
     let row = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
@@ -159,7 +159,7 @@ pub async fn accept_collaborator_request(
         "#,
     )
     .bind(request_id)
-    .bind(current_user_id)
+    .bind(current_actor_id)
     .fetch_optional(pool)
     .await?;
 
@@ -182,7 +182,7 @@ pub async fn accept_collaborator_request(
 pub async fn reject_collaborator_request(
     pool: &PgPool,
     request_id: Uuid,
-    current_user_id: Uuid,
+    current_actor_id: Uuid,
 ) -> Result<Option<CollaboratorRequest>, sqlx::Error> {
     let row = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
@@ -203,7 +203,7 @@ pub async fn reject_collaborator_request(
         "#,
     )
     .bind(request_id)
-    .bind(current_user_id)
+    .bind(current_actor_id)
     .fetch_optional(pool)
     .await?;
 
@@ -220,24 +220,24 @@ pub async fn reject_collaborator_request(
 
 pub async fn collaboratorship_exists(
     pool: &PgPool,
-    user_a_id: Uuid,
-    user_b_id: Uuid,
+    actor_a_id: Uuid,
+    actor_b_id: Uuid,
 ) -> Result<bool, sqlx::Error> {
-    let user_low_id = user_a_id.min(user_b_id);
-    let user_high_id = user_a_id.max(user_b_id);
+    let actor_low_id = actor_a_id.min(actor_b_id);
+    let actor_high_id = actor_a_id.max(actor_b_id);
 
     let exists = sqlx::query_scalar::<_, bool>(
         r#"
         SELECT EXISTS (
             SELECT 1
             FROM collaboratorships
-            WHERE user_low_id = $1
-              AND user_high_id = $2
+            WHERE actor_low_id = $1
+              AND actor_high_id = $2
         )
         "#,
     )
-    .bind(user_low_id)
-    .bind(user_high_id)
+    .bind(actor_low_id)
+    .bind(actor_high_id)
     .fetch_one(pool)
     .await?;
 
@@ -246,7 +246,7 @@ pub async fn collaboratorship_exists(
 
 pub async fn list_received_pending_requests(
     pool: &PgPool,
-    current_user_id: Uuid,
+    current_actor_id: Uuid,
 ) -> Result<Vec<CollaboratorRequest>, sqlx::Error> {
     let rows = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
@@ -265,7 +265,7 @@ pub async fn list_received_pending_requests(
         LIMIT 50
         "#,
     )
-    .bind(current_user_id)
+    .bind(current_actor_id)
     .fetch_all(pool)
     .await?;
 
@@ -283,26 +283,28 @@ pub async fn list_received_pending_requests(
 
 pub async fn list_collaborators(
     pool: &PgPool,
-    current_user_id: Uuid,
+    current_actor_id: Uuid,
 ) -> Result<Vec<CollaboratorItem>, sqlx::Error> {
     let collaborators = sqlx::query_as::<_, CollaboratorItem>(
         r#"
         SELECT
-            u.id,
-            u.username,
-            u.nickname
-        FROM collaboratorships f
-        JOIN users u
-          ON u.id = CASE
-              WHEN f.user_low_id = $1 THEN f.user_high_id
-              ELSE f.user_low_id
-          END
-        WHERE f.user_low_id = $1
-           OR f.user_high_id = $1
-        ORDER BY u.username ASC
+            a.id,
+            c.username,
+            a.display_name
+        FROM collaboratorships cs
+        JOIN actors a
+          ON a.id = CASE
+            WHEN cs.actor_low_id = $1 THEN cs.actor_high_id
+            ELSE cs.actor_low_id
+        END
+        JOIN credentials c
+        ON c.actor_id = a.id
+        WHERE cs.actor_low_id = $1
+        OR cs.actor_high_id = $1
+        ORDER BY c.username ASC
         "#,
     )
-    .bind(current_user_id)
+    .bind(current_actor_id)
     .fetch_all(pool)
     .await?;
 

@@ -16,7 +16,7 @@ pub struct CollaboratorRequest {
 // 创建协作请求的请求体
 #[derive(Debug, serde::Deserialize)]
 pub struct CreateCollaboratorRequest {
-    pub user_id: Uuid,                                              // 发起协作请求的用户ID
+    pub actor_id: Uuid,                                              // 发起协作请求的用户ID
     pub message: Option<String>,                                    // 协作请求的附加信息    
 }
 
@@ -35,7 +35,7 @@ pub struct CollaboratorRequestResponse {
 pub struct CollaboratorItem {
     pub id: Uuid,                                                   // 协作请求的唯一标识符
     pub username: String,                                           // 用户名
-    pub nickname: String,                                           // 用户昵称 
+    pub display_name: String,                                           // 用户昵称 
 }
 
 

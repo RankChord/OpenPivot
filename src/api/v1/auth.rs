@@ -5,12 +5,12 @@ use crate::{
     core::{password, token},
     models::auth::{RegisterRequest, RegisterResponse, LoginIdentifier,
         LoginRequest, TokenResponse, RefreshRequest, MeResponse},
-    repository::{user, session},
-    models::user::UserStatus,
+    repository::{actor, credential, session},
+    models::actor::ActorStatus,
 };
 
 use crate::error::AppError;
-use crate::api::v1::extractors::require_user_id;
+use crate::api::v1::extractors::require_actor_id;
 
 use axum::{
     routing::{get, post},
@@ -36,8 +36,9 @@ pub async fn register(
     
     let RegisterRequest {
         username,
-        nickname,
+        display_name,
         password,
+        actor_type,
     } = payload;
 
     // 用户名统一小写，避免 Alice 和 alice 被当成两个账号
@@ -57,11 +58,22 @@ pub async fn register(
         AppError::Internal("password hashing failed")
     })?;
 
-    // 创建用户
-    let created_user = user::create_user(
+    // 创建 Actor
+    let created_actor = actor::create_actor(
         &state.db,
+        &actor_type,
+        &display_name,
+    )
+    .await
+    .map_err(|err| {
+        eprintln!("[auth] create actor failed: {err:?}");
+        AppError::Internal("actor creation failed")
+    })?;
+
+    credential::create_credential(
+        &state.db,
+        created_actor.id,
         &username,
-        &nickname,
         &password_hash,
     )
     .await
@@ -69,10 +81,9 @@ pub async fn register(
         sqlx::Error::Database(db) if db.is_unique_violation() => {
             AppError::Conflict("username already taken")
         }
-
         _ => {
-            eprintln!("[auth] create user failed: {err:?}");
-            AppError::Internal("user creation failed")
+            eprintln!("[auth] create credential failed: {err:?}");
+            AppError::Internal("credential creation failed")
         }
     })?;
 
@@ -80,9 +91,9 @@ pub async fn register(
     Ok((
         StatusCode::CREATED,
         Json(RegisterResponse {
-            id: created_user.id,
-            username: created_user.username,
-            nickname: created_user.nickname,
+            id: created_actor.id,
+            username,
+            display_name,
         }),
     ))
 }
@@ -96,43 +107,54 @@ pub async fn login(
     payload.validate().map_err(AppError::Invalid)?;
 
     // 获取用户信息
-    let authenticated_user = match &payload.identifier {
+    let authenticated_actor = match &payload.identifier {
         LoginIdentifier::Username(username) => {
-            // 与注册保持一致，统一按小写查询
             let normalized = username.to_ascii_lowercase();
-            user::find_user_by_username(&state.db, &normalized).await
+
+            credential::find_authenticated_actor_by_username(
+                &state.db,
+                &normalized,
+            )
+            .await
         }
-        LoginIdentifier::Id(user_id) => {
-            user::find_user_by_id(&state.db, *user_id).await
+        LoginIdentifier::Id(actor_id) => {
+            credential::find_authenticated_actor_by_id(
+                &state.db,
+                *actor_id,
+            )
+            .await
         }
     }
-    .map_err(|_| AppError::Internal)?
-    .ok_or(AppError::Unauthorized)?;
+    .map_err(|err| {
+        eprintln!("[auth] find authenticated actor failed: {err:?}");
+        AppError::Internal("authentication lookup failed")
+    })?
+    .ok_or(AppError::Unauthorized("account not found"))?;
 
     // 判断用户状态是否为活跃
-    if !matches!(authenticated_user.status, UserStatus::Active) {
-        return Err(AppError::Forbidden);
+    if !matches!(authenticated_actor.status, ActorStatus::Active) {
+        return Err(AppError::Forbidden("account is not active"));
     }
-
+    
     // 验证用户密码
     let password_ok = password::verify_password(
         &payload.password,
-        &authenticated_user.password_hash,
+        &authenticated_actor.password_hash,
     )
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("password verification failed"))?;
 
     // 如果密码不正确，返回未授权错误
     if !password_ok {
-        return Err(AppError::Unauthorized);
+        return Err(AppError::Unauthorized("incorrect password"));
     }
 
     // 生成访问令牌
     let access_token = token::create_access_token(
-        authenticated_user.id,
+        authenticated_actor.actor_id,
         &state.config.auth.jwt_secret,
         state.config.auth.access_token_ttl_minutes,
     )
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("token generation failed"))?;
 
     // 生成刷新令牌
     let refresh_token = token::generate_refresh_token();
@@ -144,20 +166,26 @@ pub async fn login(
 
     // 创建连接会话
     session::create_session(
-        &state.db,                  // 数据库连接
-        authenticated_user.id,      // 用户ID
-        &refresh_token_hash,        // 刷新令牌哈希
-        expires_at,                 // 过期时间
+        &state.db,                         // 数据库连接
+        authenticated_actor.actor_id,      // 用户ID
+        &refresh_token_hash,               // 刷新令牌哈希
+        expires_at,                        // 过期时间
         None,
         None,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("session creation failed"))?;
 
     // 更新用户的最后登录时间
-    user::update_last_login_at(&state.db, authenticated_user.id)
+    credential::update_last_login_at(
+        &state.db,
+        authenticated_actor.actor_id,
+    )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|err| {
+        eprintln!("[auth] update last login time failed: {err:?}");
+        AppError::Internal("last login update failed")
+    })?;
 
     // 返回令牌响应
     Ok(Json(TokenResponse {
@@ -182,17 +210,17 @@ pub async fn refresh(
         &refresh_token_hash,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("session lookup failed"))?;
 
     // 如果会话不存在，返回未授权错误
     let old_session = match found_session {
         Some(session) => session,
-        None => return Err(AppError::Unauthorized),
+        None => return Err(AppError::Unauthorized("session not found")),
     };
 
     // 检查会话是否已被撤销或过期
     if old_session.revoked_at.is_some() {
-        return Err(AppError::Unauthorized);
+        return Err(AppError::Unauthorized("session revoked"));
     }
 
     // 检查会话是否已过期
@@ -200,16 +228,16 @@ pub async fn refresh(
 
     // 如果会话已过期，返回未授权错误
     if old_session.expires_at <= now {
-        return Err(AppError::Unauthorized);
+        return Err(AppError::Unauthorized("session expired"));
     }
 
     // 生成新的访问令牌
     let access_token = token::create_access_token(
-        old_session.user_id,
+        old_session.actor_id,
         &state.config.auth.jwt_secret,
         state.config.auth.access_token_ttl_minutes,
     )
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("token generation failed"))?;
 
     // 生成新的刷新令牌
     let new_refresh_token = token::generate_refresh_token();
@@ -222,19 +250,19 @@ pub async fn refresh(
     // 撤销旧的会话
     session::revoke_session(&state.db, old_session.id)
         .await
-        .map_err(|_| AppError::Internal)?;
+        .map_err(|_| AppError::Internal("session revoke failed"))?;
 
     // 创建新的会话
     session::create_session(
         &state.db,
-        old_session.user_id,
+        old_session.actor_id,
         &new_refresh_token_hash,
         new_expires_at,
         None,
         None,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("session creation failed"))?;
 
     // 返回新的令牌响应
     Ok(Json(TokenResponse {
@@ -275,12 +303,12 @@ pub async fn me(
     headers: axum::http::HeaderMap,
 ) -> Result<Json<MeResponse>, AppError> {
     // 从请求头中获取用户ID
-    let user_id = require_user_id(
+    let actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
     // 返回当前用户信息
     Ok(Json(MeResponse {
-        id: user_id,
+        id: actor_id,
     }))
 }

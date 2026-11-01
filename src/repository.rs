@@ -1,7 +1,8 @@
-pub mod user;
 pub mod session;
 pub mod space;
-// pub mod flow;
+pub mod actor;
+pub mod credential;
+pub mod flow;
 pub mod collaborator;
-// pub mod message;
-// pub mod conversation;
+pub mod message;
+pub mod conversation;

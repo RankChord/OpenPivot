@@ -14,9 +14,12 @@ pub enum LoginIdentifier {
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct RegisterRequest {
-    pub nickname: String,                                                    // 昵称
+    pub display_name: String,                                                    // 昵称
     pub username: String,                                                    // 用户名
     pub password: String,                                                    // 密码
+    
+    #[serde(rename = "type", default = "default_actor_type")]
+    pub actor_type: String,
 }
 
 // 注册响应体
@@ -24,7 +27,7 @@ pub struct RegisterRequest {
 pub struct RegisterResponse {
     pub id: Uuid,                                                            // 用户ID
     pub username: String,                                                    // 用户名
-    pub nickname: String,                                                    // 昵称
+    pub display_name: String,                                                    // 昵称
 }
 
 /// 登录请求体
@@ -59,8 +62,13 @@ pub struct MeResponse {
 impl RegisterRequest {
     pub fn validate(&self) -> Result<(), &'static str> {
         validate_username(&self.username)?;
-        validate_nickname(&self.nickname)?;
+        validate_display_name(&self.display_name)?;
         validate_password(&self.password)?;
+
+        if !matches!(self.actor_type.as_str(), "human" | "agent") {
+            return Err("type must be human or agent");
+        }
+
         Ok(())
     }
 }
@@ -172,19 +180,24 @@ fn validate_password(password: &str) -> Result<(), &'static str> {
 }
 
 // 昵称验证
-fn validate_nickname(nickname: &str) -> Result<(), &'static str> {
+fn validate_display_name(display_name: &str) -> Result<(), &'static str> {
     // 检查昵称长度
-    let len = nickname.chars().count();
+    let len = display_name.chars().count();
 
     // 检查昵称长度是否在1到64个字符之间
     if !(1..=64).contains(&len) {
-        return Err("nickname must be 1-64 characters long");
+        return Err("display_name must be 1-64 characters long");
     }
 
     // 检查昵称是否只包含 ASCII 字符
-    if nickname.chars().any(|c| c.is_control()) {
-        return Err("nickname must not contain control characters");
+    if display_name.chars().any(|c| c.is_control()) {
+        return Err("display_name must not contain control characters");
     }
 
     Ok(())
+}
+
+// 默认用户类型
+fn default_actor_type() -> String {
+    "human".to_string()
 }

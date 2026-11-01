@@ -8,7 +8,7 @@ use axum::{
 use uuid::Uuid;
 
 use crate::{
-    api::v1::extractors::require_user_id,
+    api::v1::extractors::require_actor_id,
     app::AppState,
     error::AppError,
     models::space::{
@@ -50,7 +50,7 @@ async fn create_space(
     Json(payload): Json<CreateSpaceRequest>,
 ) -> Result<Json<CreateSpaceResponse>, AppError> {
     // 验证用户身份
-    let current_user_id = require_user_id(
+    let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
@@ -66,7 +66,7 @@ async fn create_space(
     // 创建空间
     let created_space = space::create_space(
         &state.db,
-        current_user_id,
+        current_actor_id,
         name,
     )
     .await
@@ -76,7 +76,7 @@ async fn create_space(
     space::add_space_member(
         &state.db,
         created_space.id,
-        current_user_id,
+        current_actor_id,
         SpaceMemberRole::Owner,
     )
     .await
@@ -92,7 +92,7 @@ async fn list_my_spaces(
     headers: HeaderMap,
 ) -> Result<Json<Vec<CreateSpaceResponse>>, AppError> {
     // 验证用户身份
-    let current_user_id = require_user_id(
+    let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
@@ -100,7 +100,7 @@ async fn list_my_spaces(
     // 调用空间 Repository，获取当前用户的所有空间
     let spaces = space::list_my_spaces(
         &state.db,
-        current_user_id,
+        current_actor_id,
     )
     .await
     .map_err(|_| AppError::Internal)?;
@@ -123,7 +123,7 @@ async fn add_space_member(
     Json(payload): Json<AddSpaceMemberRequest>,
 ) -> Result<Json<AddSpaceMemberResponse>, AppError> {
     // 验证用户身份
-    let current_user_id = require_user_id(
+    let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
@@ -132,7 +132,7 @@ async fn add_space_member(
     let is_member = space::is_space_member(
         &state.db,
         space_id,
-        current_user_id,
+        current_actor_id,
     )
     .await
     .map_err(|_| AppError::Internal)?;
@@ -146,7 +146,7 @@ async fn add_space_member(
     let member = space::add_space_member(
         &state.db,
         space_id,
-        payload.user_id,
+        payload.actor_id,
         SpaceMemberRole::Member,
     )
     .await
@@ -163,7 +163,7 @@ async fn list_space_members(
     Path(space_id): Path<Uuid>,
 ) -> Result<Json<Vec<AddSpaceMemberResponse>>, AppError> {
     // 验证用户身份
-    let current_user_id = require_user_id(
+    let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
@@ -172,7 +172,7 @@ async fn list_space_members(
     let is_member = space::is_space_member(
         &state.db,
         space_id,
-        current_user_id,
+        current_actor_id,
     )
     .await
     .map_err(|_| AppError::Internal)?;
@@ -205,7 +205,7 @@ async fn create_space_message(
     Json(payload): Json<CreateSpaceMessageRequest>,
 ) -> Result<Json<SpaceMessage>, AppError> {
     // 验证用户身份
-    let current_user_id = require_user_id(
+    let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
@@ -222,7 +222,7 @@ async fn create_space_message(
     let is_member = space::is_space_member(
         &state.db,
         space_id,
-        current_user_id,
+        current_actor_id,
     )
     .await
     .map_err(|_| AppError::Internal)?;
@@ -236,7 +236,7 @@ async fn create_space_message(
     let message = space::create_space_message(
         &state.db,
         space_id,
-        current_user_id,
+        current_actor_id,
         content,
     )
     .await
@@ -253,7 +253,7 @@ async fn list_space_messages(
     Path(space_id): Path<Uuid>,
 ) -> Result<Json<Vec<SpaceMessage>>, AppError> {
     // 验证用户身份
-    let current_user_id = require_user_id(
+    let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
@@ -262,7 +262,7 @@ async fn list_space_messages(
     let is_member = space::is_space_member(
         &state.db,
         space_id,
-        current_user_id,
+        current_actor_id,
     )
     .await
     .map_err(|_| AppError::Internal)?;

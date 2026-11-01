@@ -11,8 +11,8 @@ use crate::models::conversation::{
 struct ConversationRow {
     id: Uuid,
     r#type: String,
-    user_low_id: Uuid,
-    user_high_id: Uuid,
+    actor_low_id: Uuid,
+    actor_high_id: Uuid,
     created_at: OffsetDateTime,
     updated_at: OffsetDateTime,
 }
@@ -26,8 +26,8 @@ impl TryFrom<ConversationRow> for Conversation {
         Ok(Conversation {
             id: row.id,
             conversation_type,
-            user_low_id: row.user_low_id,
-            user_high_id: row.user_high_id,
+            actor_low_id: row.actor_low_id,
+            actor_high_id: row.actor_high_id,
             created_at: row.created_at,
             updated_at: row.updated_at,
         })
@@ -36,31 +36,31 @@ impl TryFrom<ConversationRow> for Conversation {
 
 pub async fn create_or_get_direct_conversation(
     pool: &PgPool,
-    user_a_id: Uuid,
-    user_b_id: Uuid,
+    actor_a_id: Uuid,
+    actor_b_id: Uuid,
 ) -> Result<Conversation, sqlx::Error> {
-    let user_low_id = user_a_id.min(user_b_id);
-    let user_high_id = user_a_id.max(user_b_id);
+    let actor_low_id = actor_a_id.min(actor_b_id);
+    let actor_high_id = actor_a_id.max(actor_b_id);
     let conversation_id = Uuid::now_v7();
 
     let row = sqlx::query_as::<_, ConversationRow>(
         r#"
-        INSERT INTO conversations (id, type, user_low_id, user_high_id)
+        INSERT INTO conversations (id, type, actor_low_id, actor_high_id)
         VALUES ($1, 'direct', $2, $3)
-        ON CONFLICT (user_low_id, user_high_id)
+        ON CONFLICT (actor_low_id, actor_high_id)
         DO UPDATE SET updated_at = conversations.updated_at
         RETURNING
             id,
             type,
-            user_low_id,
-            user_high_id,
+            actor_low_id,
+            actor_high_id,
             created_at,
             updated_at
         "#,
     )
     .bind(conversation_id)
-    .bind(user_low_id)
-    .bind(user_high_id)
+    .bind(actor_low_id)
+    .bind(actor_high_id)
     .fetch_one(pool)
     .await?;
 
@@ -70,10 +70,10 @@ pub async fn create_or_get_direct_conversation(
     Ok(conversation)
 }
 
-pub async fn user_in_conversation(
+pub async fn actor_in_conversation(
     pool: &PgPool,
     conversation_id: Uuid,
-    user_id: Uuid,
+    actor_id: Uuid,
 ) -> Result<bool, sqlx::Error> {
     let exists = sqlx::query_scalar::<_, bool>(
         r#"
@@ -81,12 +81,12 @@ pub async fn user_in_conversation(
             SELECT 1
             FROM conversations
             WHERE id = $1
-              AND (user_low_id = $2 OR user_high_id = $2)
+              AND (actor_low_id = $2 OR actor_high_id = $2)
         )
         "#,
     )
     .bind(conversation_id)
-    .bind(user_id)
+    .bind(actor_id)
     .fetch_one(pool)
     .await?;
 
@@ -95,24 +95,24 @@ pub async fn user_in_conversation(
 
 pub async fn list_conversations(
     pool: &PgPool,
-    current_user_id: Uuid,
+    current_actor_id: Uuid,
 ) -> Result<Vec<Conversation>, sqlx::Error> {
     let rows = sqlx::query_as::<_, ConversationRow>(
         r#"
         SELECT
             id,
             type,
-            user_low_id,
-            user_high_id,
+            actor_low_id,
+            actor_high_id,
             created_at,
             updated_at
         FROM conversations
-        WHERE user_low_id = $1
-           OR user_high_id = $1
+        WHERE actor_low_id = $1
+           OR actor_high_id = $1
         ORDER BY updated_at DESC
         "#,
     )
-    .bind(current_user_id)
+    .bind(current_actor_id)
     .fetch_all(pool)
     .await?;
 

@@ -18,7 +18,7 @@ pub struct Space {
 pub struct SpaceMember {
     pub id: Uuid,                               // 数据库空间成员id主键
     pub space_id: Uuid,                         // 所属空间id
-    pub user_id: Uuid,                          // 成员用户id
+    pub actor_id: Uuid,                          // 成员用户id
     pub role: SpaceMemberRole,                  // 成员角色 (owner, admin, member)
     pub joined_at: OffsetDateTime,              // 加入时间
 }
@@ -31,7 +31,6 @@ pub struct SpaceMessage {
     pub sender_id: Uuid,                        // 发送者用户id
     pub content: String,                        // 消息内容
     pub created_at: OffsetDateTime,             // 创建时间
-    pub status: String,                         // 消息状态 (sent, delivered, read)
 }
 
 // 空间创建请求结构体
@@ -60,7 +59,7 @@ pub struct CreateSpaceMessageRequest {
 // 空间添加成员请求结构体
 #[derive(Debug, serde::Deserialize)]
 pub struct AddSpaceMemberRequest {
-    pub user_id: Uuid,                          // 成员用户id
+    pub actor_id: Uuid,                          // 成员用户id
 }
 
 // 空间添加成员响应结构体
@@ -68,7 +67,7 @@ pub struct AddSpaceMemberRequest {
 pub struct AddSpaceMemberResponse {
     pub id: Uuid,                               // 数据库空间成员id主键
     pub space_id: Uuid,                         // 所属空间id
-    pub user_id: Uuid,                          // 成员用户id
+    pub actor_id: Uuid,                          // 成员用户id
     pub role: String,                           // 成员角色 (owner, admin, member)
 }
 
@@ -190,7 +189,7 @@ impl SpaceMember {
         AddSpaceMemberResponse {
             id: self.id,
             space_id: self.space_id,
-            user_id: self.user_id,
+            actor_id: self.actor_id,
             role: self.role.as_str().to_string(),
         }
     }

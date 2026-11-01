@@ -24,7 +24,7 @@ pub fn hash_refresh_token(token: &str) -> String {
 }
 
 pub fn create_access_token(
-    user_id: Uuid,
+    actor_id: Uuid,
     jwt_secret: &str,
     ttl_minutes: u64,
 ) -> Result<String, jsonwebtoken::errors::Error> {
@@ -32,7 +32,7 @@ pub fn create_access_token(
     let expires_at = now + time::Duration::minutes(ttl_minutes as i64);
 
     let claims = AccessTokenClaims {
-        sub: user_id.to_string(),
+        sub: actor_id.to_string(),
         iat: now.unix_timestamp(),
         exp: expires_at.unix_timestamp(),
     };

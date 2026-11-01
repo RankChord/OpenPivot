@@ -57,6 +57,12 @@ impl IntoResponse for AppError {
                 "forbidden",
                 message,
             ),
+            // 参数校验失败
+            AppError::Invalid(message) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "invalid",
+                message,
+            ),
         };
 
         // 创建 JSON 响应体

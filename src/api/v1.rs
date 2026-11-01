@@ -1,22 +1,22 @@
 pub mod auth;
-pub mod user;
+pub mod actor;
 pub mod space;
 pub mod extractors;
-// pub mod flow;
+pub mod flow;
 pub mod collaborator;
 pub mod system;
-// pub mod conversation;
+pub mod conversation;
 
 use axum::Router;
 use crate::app::AppState;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
-        // .merge(flow::routes())
+        .merge(flow::routes())
         .nest("/auth", auth::routes())
-        .nest("/users", user::routes())
-        // .nest("/space", space::routes())
+        .nest("/actor", actor::routes())
+        .nest("/space", space::routes())
         .nest("/system", system::routes())
         .nest("/collaborator", collaborator::routes())
-        // .nest("/conversations", conversation::routes())
+        .nest("/conversations", conversation::routes())
 }

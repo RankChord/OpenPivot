@@ -6,8 +6,8 @@ use uuid::Uuid;
 pub struct Conversation {
     pub id: Uuid,                                                                       // 会话的唯一标识符
     pub conversation_type: ConversationType,                                            // 会话类型
-    pub user_low_id: Uuid,                                                              // 会话中用户ID较小的用户ID
-    pub user_high_id: Uuid,                                                             // 会话中用户ID较大的用户ID
+    pub actor_low_id: Uuid,                                                              // 会话中用户ID较小的用户ID
+    pub actor_high_id: Uuid,                                                             // 会话中用户ID较大的用户ID
     pub created_at: OffsetDateTime,                                                     // 会话的创建时间
     pub updated_at: OffsetDateTime,                                                     // 会话的更新时间
 }
@@ -15,7 +15,7 @@ pub struct Conversation {
 // 创建直接会话的请求体
 #[derive(Debug, serde::Deserialize)]
 pub struct CreateDirectConversationRequest {
-    pub user_id: Uuid,                                                                  // 发起直接会话的用户ID
+    pub actor_id: Uuid,                                                                  // 发起直接会话的用户ID
 }
 
 // 直接会话响应体
@@ -23,8 +23,8 @@ pub struct CreateDirectConversationRequest {
 pub struct ConversationResponse {
     pub id: Uuid,                                                                       // 会话的唯一标识符
     pub conversation_type: String,                                                      // 会话类型
-    pub user_low_id: Uuid,                                                              // 会话中用户ID较小的用户ID
-    pub user_high_id: Uuid,                                                             // 会话中用户ID较大的用户ID
+    pub actor_low_id: Uuid,                                                              // 会话中用户ID较小的用户ID
+    pub actor_high_id: Uuid,                                                             // 会话中用户ID较大的用户ID
 }
 
 // 会话类型枚举
@@ -63,8 +63,8 @@ impl Conversation {
         ConversationResponse {
             id: self.id,
             conversation_type: self.conversation_type.as_str().to_string(),
-            user_low_id: self.user_low_id,
-            user_high_id: self.user_high_id,
+            actor_low_id: self.actor_low_id,
+            actor_high_id: self.actor_high_id,
         }
     }
 }
