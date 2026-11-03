@@ -215,7 +215,7 @@ async fn create_space_message(
 
     // 验证消息内容是否为空
     if content.is_empty() {
-        return Err(AppError::BadRequest("list space messages failed"));
+        return Err(AppError::BadRequest("create space message failed"));
     }
 
     // 检查当前用户是否是该空间的成员
