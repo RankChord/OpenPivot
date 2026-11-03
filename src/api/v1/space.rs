@@ -60,7 +60,7 @@ async fn create_space(
 
     // 验证空间名称是否为空
     if name.is_empty() {
-        return Err(AppError::BadRequest);
+        return Err(AppError::BadRequest("Space name cannot be empty"));
     }
 
     // 创建空间
@@ -70,7 +70,7 @@ async fn create_space(
         name,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("create space failed"))?;
 
     // 将创建者添加为空间成员，角色为Owner
     space::add_space_member(
@@ -80,7 +80,7 @@ async fn create_space(
         SpaceMemberRole::Owner,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("add space member failed"))?;
 
     // 返回创建的空间信息
     Ok(Json(created_space.into_response()))
@@ -103,7 +103,7 @@ async fn list_my_spaces(
         current_actor_id,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("list my spaces failed"))?;
 
     // 将空间列表转换为响应格式
     let response = spaces
@@ -135,11 +135,11 @@ async fn add_space_member(
         current_actor_id,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("space membership check failed"))?;
 
     // 如果当前用户不是该空间的成员，则返回403 Forbidden错误
     if !is_member {
-        return Err(AppError::Forbidden);
+        return Err(AppError::Forbidden("not a member of this space"));
     }
 
     // 调用空间 Repository，添加新的空间成员
@@ -150,7 +150,7 @@ async fn add_space_member(
         SpaceMemberRole::Member,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("add space member failed"))?;
 
     // 将添加的成员信息转换为响应格式
     Ok(Json(member.into_response()))
@@ -175,17 +175,17 @@ async fn list_space_members(
         current_actor_id,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("space membership check failed"))?;
 
     // 如果当前用户不是该空间的成员，则返回403 Forbidden错误
     if !is_member {
-        return Err(AppError::Forbidden);
+        return Err(AppError::Forbidden("not a member of this space"));
     }
 
     // 调用空间 Repository，获取空间成员列表
     let members = space::list_space_members(&state.db, space_id)
         .await
-        .map_err(|_| AppError::Internal)?;
+        .map_err(|_| AppError::Internal("list space members failed"))?;
 
     // 将空间成员列表转换为响应格式
     let response = members
@@ -215,7 +215,7 @@ async fn create_space_message(
 
     // 验证消息内容是否为空
     if content.is_empty() {
-        return Err(AppError::BadRequest);
+        return Err(AppError::BadRequest("list space messages failed"));
     }
 
     // 检查当前用户是否是该空间的成员
@@ -225,11 +225,11 @@ async fn create_space_message(
         current_actor_id,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("space membership check failed"))?;
 
     // 如果当前用户不是该空间的成员，则返回403 Forbidden错误
     if !is_member {
-        return Err(AppError::Forbidden);
+        return Err(AppError::Forbidden("not a member of this space"));
     }
 
     // 创建空间消息
@@ -240,7 +240,7 @@ async fn create_space_message(
         content,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("create space message failed"))?;
 
     // 返回创建的空间消息信息
     Ok(Json(message))
@@ -265,11 +265,11 @@ async fn list_space_messages(
         current_actor_id,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("space membership check failed"))?;
 
     // 如果当前用户不是该空间的成员，则返回403 Forbidden错误
     if !is_member {
-        return Err(AppError::Forbidden);
+        return Err(AppError::Forbidden("not a member of this space"));
     }
 
     // 获取空间消息列表
@@ -278,7 +278,7 @@ async fn list_space_messages(
         space_id,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("list space messages failed"))?;
 
     // 返回空间消息列表作为 JSON 响应
     Ok(Json(messages))

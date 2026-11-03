@@ -21,7 +21,7 @@ use crate::{
     repository::{flow, space},
 };
 
-
+// 创建路由节点
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route(
@@ -38,29 +38,34 @@ pub fn routes() -> Router<AppState> {
         )
 }
 
+// 创建工作流
 pub async fn create_flow(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
     Path(space_id): Path<Uuid>,
     Json(payload): Json<CreateFlowRequest>,
 ) -> Result<Json<FlowResponse>, AppError> {
+    // 检查对象用户信息
     let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
+    // 获取当前对象与空间关系
     let is_member = space::is_space_member(
         &state.db,
         space_id,
         current_actor_id,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("check space membership failed"))?;
 
+    // 判断当前用户是否属于空间
     if !is_member {
-        return Err(AppError::Forbidden);
+        return Err(AppError::Forbidden("not a member of this space"));
     }
 
+    // 创建工作流结构体
     let flow = flow::create_flow(
         &state.db,
         space_id,
@@ -69,40 +74,46 @@ pub async fn create_flow(
         payload.description.as_deref(),
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("create flow failed"))?;
 
     Ok(Json(flow.into_response()))
 }
 
+// 获取工作流列表
 pub async fn list_flows(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
     Path(space_id): Path<Uuid>,
 ) -> Result<Json<Vec<FlowResponse>>, AppError> {
+    // 获取对象账户信息
     let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
+    // 获取对象与当前空间关系
     let is_member = space::is_space_member(
         &state.db,
         space_id,
         current_actor_id,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("check space membership failed"))?;
 
+    // 判断当前用户是否属于空间
     if !is_member {
-        return Err(AppError::Forbidden);
+        return Err(AppError::Forbidden("not a member of this space"));
     }
 
+    // 获取工作流列表
     let flows = flow::list_flows_by_space(
         &state.db,
         space_id,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("list flows failed" ))?;
 
+    // 将工作流列表转换为响应格式
     let responses = flows
         .into_iter()
         .map(|flow| flow.into_response())
@@ -111,41 +122,48 @@ pub async fn list_flows(
     Ok(Json(responses))
 }
 
+// 启动工作流函数
 pub async fn start_flow_run(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
     Path((space_id, flow_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<StartFlowRunRequest>,
 ) -> Result<Json<StartFlowRunResponse>, AppError> {
+    // 获取对象账户信息
     let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
+    // 获取当前对象与空间关系
     let is_member = space::is_space_member(
         &state.db,
         space_id,
         current_actor_id,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("check space membership failed"))?;
 
+    // 判断当前用户是否属于空间
     if !is_member {
-        return Err(AppError::Forbidden);
+        return Err(AppError::Forbidden("not a member of this space"));
     }
 
+    // 获取当前任务执行人与空间关系
     let assignee_is_member = space::is_space_member(
         &state.db,
         space_id,
         payload.assignee_id,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("check space membership failed"))?;
 
+    // 判断当前任务执行人是否属于空间
     if !assignee_is_member {
-        return Err(AppError::BadRequest);
+        return Err(AppError::BadRequest("current assignee is not a member of this space"));
     }
 
+    // 启动工作流运行
     let (run, task) = flow::start_manual_flow_run(
         &state.db,
         flow_id,
@@ -156,7 +174,7 @@ pub async fn start_flow_run(
         payload.task_description.as_deref(),
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("start flow run failed"))?;
 
     Ok(Json(StartFlowRunResponse {
         run_id: run.id,
@@ -165,17 +183,20 @@ pub async fn start_flow_run(
     }))
 }
 
+// 完成工作流任务
 pub async fn complete_flow_task(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
     Path(task_id): Path<Uuid>,
     Json(payload): Json<CompleteFlowTaskRequest>,
 ) -> Result<Json<CompleteFlowTaskResponse>, AppError> {
+    // 获取对象账户信息
     let current_actor_id = require_actor_id(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
 
+    // 获取当前任务信息
     let task = flow::complete_flow_task(
         &state.db,
         task_id,
@@ -183,8 +204,9 @@ pub async fn complete_flow_task(
         &payload.result,
     )
     .await
-    .map_err(|_| AppError::BadRequest)?;
+    .map_err(|_| AppError::BadRequest("complete flow task failed"))?;
 
+    // 记录任务完成事件
     flow::append_flow_event(
         &state.db,
         task.flow_run_id,
@@ -194,13 +216,15 @@ pub async fn complete_flow_task(
         "{}",
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("append flow event failed"))?;
 
+    // 创建空间消息
     let message_content = format!(
         "流程任务已完成：{}",
         task.title,
     );
 
+    // 创建空间消息
     space::create_space_message(
         &state.db,
         task.space_id,
@@ -208,8 +232,9 @@ pub async fn complete_flow_task(
         &message_content,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("create space message failed"))?;
 
+    // 记录空间通知事件
     flow::append_flow_event(
         &state.db,
         task.flow_run_id,
@@ -219,15 +244,17 @@ pub async fn complete_flow_task(
         "{}",
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("append flow event failed"))?;
 
+    // 完成工作流运行
     let run = flow::complete_flow_run(
         &state.db,
         task.flow_run_id,
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("complete flow run failed"))?;
 
+    // 记录工作流完成事件
     flow::append_flow_event(
         &state.db,
         task.flow_run_id,
@@ -237,7 +264,7 @@ pub async fn complete_flow_task(
         "{}",
     )
     .await
-    .map_err(|_| AppError::Internal)?;
+    .map_err(|_| AppError::Internal("append flow event failed"))?;
 
     Ok(Json(CompleteFlowTaskResponse {
         task_id: task.id,
