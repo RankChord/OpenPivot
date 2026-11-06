@@ -1,4 +1,4 @@
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgPool, PgExecutor};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -59,7 +59,7 @@ impl TryFrom<AuthenticatedActorRow> for AuthenticatedActor {
 
 // 创建新凭证
 pub async fn create_credential(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     actor_id: Uuid,
     username: &str,
     password_hash: &str,
@@ -108,7 +108,7 @@ pub async fn find_authenticated_actor_by_username(
         "#,
     )
     .bind(username)
-    .fetch_optional(pool)
+    .fetch_optional(executor)
     .await?;
 
     row.map(AuthenticatedActor::try_from)
@@ -144,7 +144,7 @@ pub async fn find_authenticated_actor_by_id(
 
 // 更新用户最后登录时间
 pub async fn update_last_login_at(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     actor_id: Uuid,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
@@ -157,7 +157,7 @@ pub async fn update_last_login_at(
         "#,
     )
     .bind(actor_id)
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())

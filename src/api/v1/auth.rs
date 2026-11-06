@@ -58,9 +58,15 @@ pub async fn register(
         AppError::Internal("password hashing failed")
     })?;
 
+    // 开启事务
+    let mut tx = state.db.begin().await.map_err(|err| {
+        eprintln!("[auth] begin transaction failed: {err:?}");
+        AppError::Internal("transaction begin failed")
+    })?;
+
     // 创建 Actor
     let created_actor = actor::create_actor(
-        &state.db,
+        &mut *tx,
         &actor_type,
         &display_name,
     )
@@ -71,7 +77,7 @@ pub async fn register(
     })?;
 
     credential::create_credential(
-        &state.db,
+        &mut *tx,
         created_actor.id,
         &username,
         &password_hash,
@@ -85,6 +91,12 @@ pub async fn register(
             eprintln!("[auth] create credential failed: {err:?}");
             AppError::Internal("credential creation failed")
         }
+    })?;
+
+    // 提交事务
+    tx.commit().await.map_err(|err| {
+        eprintln!("[auth] commit transaction failed: {err:?}");
+        AppError::Internal("transaction commit failed")
     })?;
 
     // 返回注册成功响应
@@ -164,9 +176,15 @@ pub async fn login(
     let expires_at = time::OffsetDateTime::now_utc()
         + time::Duration::days(state.config.auth.refresh_token_ttl_days as i64);
 
+    // 开启事务
+    let mut tx = state.db.begin().await.map_err(|err| {
+        eprintln!("[auth] begin transaction failed: {err:?}");
+        AppError::Internal("transaction begin failed")
+    })?;
+
     // 创建连接会话
     session::create_session(
-        &state.db,                         // 数据库连接
+        &mut *tx,                          // 事务连接
         authenticated_actor.actor_id,      // 用户ID
         &refresh_token_hash,               // 刷新令牌哈希
         expires_at,                        // 过期时间
@@ -178,13 +196,19 @@ pub async fn login(
 
     // 更新用户的最后登录时间
     credential::update_last_login_at(
-        &state.db,
+        &mut *tx,
         authenticated_actor.actor_id,
     )
     .await
     .map_err(|err| {
         eprintln!("[auth] update last login time failed: {err:?}");
         AppError::Internal("last login update failed")
+    })?;
+
+    // 提交事务
+    tx.commit().await.map_err(|err| {
+        eprintln!("[auth] commit transaction failed: {err:?}");
+        AppError::Internal("transaction commit failed")
     })?;
 
     // 返回令牌响应
@@ -247,14 +271,20 @@ pub async fn refresh(
     let new_expires_at = now
         + time::Duration::days(state.config.auth.refresh_token_ttl_days as i64);
 
+    // 开启事务
+    let mut tx = state.db.begin().await.map_err(|err| {
+        eprintln!("[auth] begin transaction failed: {err:?}");
+        AppError::Internal("transaction begin failed")
+    })?;
+
     // 撤销旧的会话
-    session::revoke_session(&state.db, old_session.id)
+    session::revoke_session(&mut *tx, old_session.id)
         .await
         .map_err(|_| AppError::Internal("session revoke failed"))?;
 
     // 创建新的会话
     session::create_session(
-        &state.db,
+        &mut *tx,
         old_session.actor_id,
         &new_refresh_token_hash,
         new_expires_at,
@@ -263,6 +293,12 @@ pub async fn refresh(
     )
     .await
     .map_err(|_| AppError::Internal("session creation failed"))?;
+
+    // 提交事务
+    tx.commit().await.map_err(|err| {
+        eprintln!("[auth] commit transaction failed: {err:?}");
+        AppError::Internal("transaction commit failed")
+    })?;
 
     // 返回新的令牌响应
     Ok(Json(TokenResponse {

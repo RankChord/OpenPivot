@@ -196,9 +196,13 @@ pub async fn complete_flow_task(
         &state.config.auth.jwt_secret,
     )?;
 
+    // 开启事务
+    let mut tx = state.db.begin().await
+        .map_err(|_| AppError::Internal("transaction begin failed"))?;
+
     // 获取当前任务信息
     let task = flow::complete_flow_task(
-        &state.db,
+        &mut *tx,
         task_id,
         current_actor_id,
         &payload.result,
@@ -208,7 +212,7 @@ pub async fn complete_flow_task(
 
     // 记录任务完成事件
     flow::append_flow_event(
-        &state.db,
+        &mut *tx,
         task.flow_run_id,
         task.space_id,
         crate::models::flow::FlowEventType::TaskCompleted,
@@ -226,7 +230,7 @@ pub async fn complete_flow_task(
 
     // 创建空间消息
     space::create_space_message(
-        &state.db,
+        &mut *tx,
         task.space_id,
         current_actor_id,
         &message_content,
@@ -236,7 +240,7 @@ pub async fn complete_flow_task(
 
     // 记录空间通知事件
     flow::append_flow_event(
-        &state.db,
+        &mut *tx,
         task.flow_run_id,
         task.space_id,
         crate::models::flow::FlowEventType::SpaceNotified,
@@ -248,7 +252,7 @@ pub async fn complete_flow_task(
 
     // 完成工作流运行
     let run = flow::complete_flow_run(
-        &state.db,
+        &mut *tx,
         task.flow_run_id,
     )
     .await
@@ -256,7 +260,7 @@ pub async fn complete_flow_task(
 
     // 记录工作流完成事件
     flow::append_flow_event(
-        &state.db,
+        &mut *tx,
         task.flow_run_id,
         task.space_id,
         crate::models::flow::FlowEventType::FlowCompleted,
@@ -265,6 +269,10 @@ pub async fn complete_flow_task(
     )
     .await
     .map_err(|_| AppError::Internal("append flow event failed"))?;
+
+    // 提交事务
+    tx.commit().await
+        .map_err(|_| AppError::Internal("transaction commit failed"))?;
 
     Ok(Json(CompleteFlowTaskResponse {
         task_id: task.id,

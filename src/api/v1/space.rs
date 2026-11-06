@@ -63,9 +63,13 @@ async fn create_space(
         return Err(AppError::BadRequest("Space name cannot be empty"));
     }
 
+    // 开启事务
+    let mut tx = state.db.begin().await
+        .map_err(|_| AppError::Internal("transaction begin failed"))?;
+
     // 创建空间
     let created_space = space::create_space(
-        &state.db,
+        &mut *tx,
         current_actor_id,
         name,
     )
@@ -74,13 +78,17 @@ async fn create_space(
 
     // 将创建者添加为空间成员，角色为Owner
     space::add_space_member(
-        &state.db,
+        &mut *tx,
         created_space.id,
         current_actor_id,
         SpaceMemberRole::Owner,
     )
     .await
     .map_err(|_| AppError::Internal("add space member failed"))?;
+
+    // 提交事务
+    tx.commit().await
+        .map_err(|_| AppError::Internal("transaction commit failed"))?;
 
     // 返回创建的空间信息
     Ok(Json(created_space.into_response()))

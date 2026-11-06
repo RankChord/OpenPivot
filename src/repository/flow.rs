@@ -1,4 +1,4 @@
-use sqlx::PgPool;
+use sqlx::{PgPool, PgExecutor};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -134,7 +134,7 @@ impl TryFrom<FlowRunRow> for FlowRun {
 }
 
 pub async fn create_flow_run(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     flow_id: Uuid,
     space_id: Uuid,
     started_by: Uuid,
@@ -151,7 +151,7 @@ pub async fn create_flow_run(
     .bind(flow_id)
     .bind(space_id)
     .bind(started_by)
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await?;
 
     FlowRun::try_from(row)
@@ -196,7 +196,7 @@ impl TryFrom<FlowTaskRow> for FlowTask {
 }
 
 pub async fn create_flow_task(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     flow_run_id: Uuid,
     space_id: Uuid,
     assignee_id: Uuid,
@@ -236,14 +236,14 @@ pub async fn create_flow_task(
     .bind(assignee_id)
     .bind(title)
     .bind(description)
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await?;
 
     FlowTask::try_from(row)
 }
 
 pub async fn set_flow_run_current_task(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     flow_run_id: Uuid,
     task_id: Uuid,
 ) -> Result<(), sqlx::Error> {
@@ -257,14 +257,14 @@ pub async fn set_flow_run_current_task(
     )
     .bind(flow_run_id)
     .bind(task_id)
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())
 }
 
 pub async fn append_flow_event(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     flow_run_id: Uuid,
     space_id: Uuid,
     event_type: FlowEventType,
@@ -299,7 +299,7 @@ pub async fn append_flow_event(
     .bind(event_type.as_str())
     .bind(actor_id)
     .bind(payload)
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await?;
 
     Ok(event)
@@ -314,8 +314,10 @@ pub async fn start_manual_flow_run(
     task_title: &str,
     task_description: Option<&str>,
 ) -> Result<(FlowRun, FlowTask), sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
     let run = create_flow_run(
-        pool,
+        &mut *tx,
         flow_id,
         space_id,
         started_by,
@@ -323,7 +325,7 @@ pub async fn start_manual_flow_run(
     .await?;
 
     let task = create_flow_task(
-        pool,
+        &mut *tx,
         run.id,
         space_id,
         assignee_id,
@@ -333,14 +335,14 @@ pub async fn start_manual_flow_run(
     .await?;
 
     set_flow_run_current_task(
-        pool,
+        &mut *tx,
         run.id,
         task.id,
     )
     .await?;
 
     append_flow_event(
-        pool,
+        &mut *tx,
         run.id,
         space_id,
         FlowEventType::FlowStarted,
@@ -350,7 +352,7 @@ pub async fn start_manual_flow_run(
     .await?;
 
     append_flow_event(
-        pool,
+        &mut *tx,
         run.id,
         space_id,
         FlowEventType::TaskCreated,
@@ -359,11 +361,13 @@ pub async fn start_manual_flow_run(
     )
     .await?;
 
+    tx.commit().await?;
+
     Ok((run, task))
 }
 
 pub async fn complete_flow_task(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     task_id: Uuid,
     completed_by: Uuid,
     result: &str,
@@ -395,14 +399,14 @@ pub async fn complete_flow_task(
     .bind(task_id)
     .bind(completed_by)
     .bind(result)
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await?;
 
     FlowTask::try_from(row)
 }
 
 pub async fn complete_flow_run(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     flow_run_id: Uuid,
 ) -> Result<FlowRun, sqlx::Error> {
     let row = sqlx::query_as::<_, FlowRunRow>(
@@ -424,7 +428,7 @@ pub async fn complete_flow_run(
         "#,
     )
     .bind(flow_run_id)
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await?;
 
     FlowRun::try_from(row)

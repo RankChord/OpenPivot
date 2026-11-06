@@ -1,10 +1,10 @@
-use sqlx::PgPool;
+use sqlx::{PgPool, PgExecutor};
 use time::OffsetDateTime;
 use uuid::Uuid;
 use crate::models::session::ActorSession;
 
 pub async fn create_session(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     actor_id: Uuid,
     refresh_token_hash: &str,
     expires_at: OffsetDateTime,
@@ -34,7 +34,7 @@ pub async fn create_session(
     .bind(expires_at)
     .bind(user_agent)
     .bind(ip_address)
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await
     .map_err(|err| {
         eprintln!("[数据库管理]: 创建 session 失败: {:?}", err);
@@ -72,7 +72,7 @@ pub async fn find_session_by_refresh_token_hash(
 }
 
 pub async fn revoke_session(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     session_id: Uuid,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
@@ -83,7 +83,7 @@ pub async fn revoke_session(
         "#,
     )
     .bind(session_id)
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())

@@ -1,4 +1,4 @@
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, PgPool, PgExecutor};
 use time::OffsetDateTime;
 use uuid::Uuid;
 use serde_json::Value;
@@ -38,7 +38,7 @@ impl TryFrom<ActorRow> for Actor {
 
 // 创建新用户
 pub async fn create_actor(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     actor_type: &str,
     display_name: &str,
 ) -> Result<Actor, sqlx::Error> {
@@ -62,7 +62,7 @@ pub async fn create_actor(
     .bind(actor_id)
     .bind(actor_type)
     .bind(display_name)
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await?;
 
     Actor::try_from(row).map_err(|_| sqlx::Error::RowNotFound)

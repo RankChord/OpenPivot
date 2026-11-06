@@ -1,4 +1,4 @@
-use sqlx::PgPool;
+use sqlx::{PgExecutor, PgPool};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -35,6 +35,7 @@ impl TryFrom<CollaboratorRequestRow> for CollaboratorRequest {
     }
 }
 
+// 创建协作者请求
 pub async fn create_collaborator_request(
     pool: &PgPool,
     requester_id: Uuid,
@@ -69,6 +70,7 @@ pub async fn create_collaborator_request(
     Ok(request)
 }
 
+// 查找两个用户之间的待处理请求
 pub async fn find_pending_request_between_actors(
     pool: &PgPool,
     actor_a_id: Uuid,
@@ -110,8 +112,9 @@ pub async fn find_pending_request_between_actors(
 }
 }
 
+// 创建协作关系
 pub async fn create_collaboratorship(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     actor_a_id: Uuid,
     actor_b_id: Uuid,
 ) -> Result<(), sqlx::Error> {
@@ -129,17 +132,20 @@ pub async fn create_collaboratorship(
     .bind(collaboratorship_id)
     .bind(actor_low_id)
     .bind(actor_high_id)
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(())
 }
 
+// 通过协作请求
 pub async fn accept_collaborator_request(
     pool: &PgPool,
     request_id: Uuid,
     current_actor_id: Uuid,
 ) -> Result<Option<CollaboratorRequest>, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
     let row = sqlx::query_as::<_, CollaboratorRequestRow>(
         r#"
         UPDATE collaborator_requests
@@ -160,7 +166,7 @@ pub async fn accept_collaborator_request(
     )
     .bind(request_id)
     .bind(current_actor_id)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *tx)
     .await?;
 
     let request = match row {
@@ -170,15 +176,18 @@ pub async fn accept_collaborator_request(
     };
 
     create_collaboratorship(
-        pool,
+        &mut *tx,
         request.requester_id,
         request.addressee_id,
     )
     .await?;
 
+    tx.commit().await?;
+
     Ok(Some(request))
 }
 
+// 拒绝协作请求
 pub async fn reject_collaborator_request(
     pool: &PgPool,
     request_id: Uuid,
@@ -218,6 +227,7 @@ pub async fn reject_collaborator_request(
     }
 }
 
+// 
 pub async fn collaboratorship_exists(
     pool: &PgPool,
     actor_a_id: Uuid,

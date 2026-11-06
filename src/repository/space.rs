@@ -1,4 +1,4 @@
-use sqlx::PgPool;
+use sqlx::{PgPool, PgExecutor};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -65,7 +65,7 @@ impl TryFrom<SpaceMemberRow> for SpaceMember {
 }
 
 pub async fn create_space(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     owner_id: Uuid,
     name: &str,
 ) -> Result<Space, sqlx::Error> {
@@ -86,7 +86,7 @@ pub async fn create_space(
     .bind(space_id)
     .bind(name)
     .bind(owner_id)
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await?;
 
     let space = Space::try_from(row)
@@ -96,7 +96,7 @@ pub async fn create_space(
 }
 
 pub async fn add_space_member(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     space_id: Uuid,
     actor_id: Uuid,
     role: SpaceMemberRole,
@@ -120,7 +120,7 @@ pub async fn add_space_member(
     .bind(space_id)
     .bind(actor_id)
     .bind(role.as_str())
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await?;
 
     let member = SpaceMember::try_from(row)
@@ -221,7 +221,7 @@ pub async fn is_space_member(
 }
 
 pub async fn create_space_message(
-    pool: &PgPool,
+    executor: impl PgExecutor<'_>,
     space_id: Uuid,
     sender_id: Uuid,
     content: &str,
@@ -243,7 +243,7 @@ pub async fn create_space_message(
     .bind(space_id)
     .bind(sender_id)
     .bind(content)
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await?;
 
     Ok(message)
