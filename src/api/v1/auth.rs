@@ -322,11 +322,14 @@ pub async fn logout(
         &state.db,
         &refresh_token_hash,
     )
-    .await;
+    .await
+    .map_err(|_| AppError::Internal("session lookup failed"))?;
 
     // 如果会话存在，撤销会话
-    if let Ok(Some(session)) = found_session {
-        let _ = session::revoke_session(&state.db, session.id).await;
+    if let Some(session) = found_session {
+        session::revoke_session(&state.db, session.id)
+            .await
+            .map_err(|_| AppError::Internal("session revoke failed"))?;
     }
 
     // 返回204 No Content，表示登出成功

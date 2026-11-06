@@ -84,7 +84,7 @@ pub async fn create_credential(
     .bind(actor_id)
     .bind(username)
     .bind(password_hash)
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await?;
 
     Ok(row.into())
@@ -108,7 +108,7 @@ pub async fn find_authenticated_actor_by_username(
         "#,
     )
     .bind(username)
-    .fetch_optional(executor)
+    .fetch_optional(pool)
     .await?;
 
     row.map(AuthenticatedActor::try_from)
