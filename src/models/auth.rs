@@ -56,6 +56,12 @@ pub struct TokenResponse {
 #[derive(Debug, Serialize)]
 pub struct MeResponse {
     pub id: Uuid,                                                            // 用户ID 
+    pub username: String,                                                    // 用户名
+    pub display_name: String,                                                // 昵称
+    #[serde(rename = "type")]                                                // actor_type 重命名 type 用户类型
+    pub actor_type: String,                                                  // 用户类型       
+    pub avatar: Option<String>,                                              // 头像
+    pub status: String,                                                      // 用户状态
 }
 
 // 注册请求体验证

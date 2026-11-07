@@ -346,8 +346,33 @@ pub async fn me(
         &headers,
         &state.config.auth.jwt_secret,
     )?;
-    // 返回当前用户信息
+
+    // 根据用户ID查找用户信息
+    let actor = actor::find_actor_by_id(&state.db, actor_id)
+        .await
+        .map_err(|_| AppError::Internal("actor lookup failed"))?
+        .ok_or(AppError::Unauthorized("actor not found"))?;
+
+    // 根据用户ID查找认证信息
+    let credential = credential::find_authenticated_actor_by_id(
+        &state.db,
+        actor_id,
+    )
+    .await
+    .map_err(|_| AppError::Internal("credential lookup failed"))?
+    .ok_or(AppError::Unauthorized("credential not found"))?;
+
+    // 检查用户状态是否为活跃
+    if !matches!(&actor.status, ActorStatus::Active) {
+        return Err(AppError::Forbidden("account is not active"));
+    }
+
     Ok(Json(MeResponse {
-        id: actor_id,
+        id: actor.id,
+        username: credential.username,
+        display_name: actor.display_name,
+        actor_type: actor.actor_type,
+        avatar: actor.avatar,
+        status: actor.status.as_str().to_string(),
     }))
 }
