@@ -5,6 +5,8 @@ use uuid::Uuid;
 use crate::models::space::{
     Space,
     SpaceMember,
+    SpaceMemberRequest,
+    SpaceMemberRequestStatus,
     SpaceMemberRole,
     SpaceMessage,
     SpaceType,
@@ -60,6 +62,37 @@ impl TryFrom<SpaceMemberRow> for SpaceMember {
             actor_id: row.actor_id,
             role,
             joined_at: row.joined_at,
+        })
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct SpaceMemberRequestRow {
+    id: Uuid,
+    space_id: Uuid,
+    requester_actor_id: Uuid,
+    target_actor_id: Uuid,
+    status: String,
+    reviewer_actor_id: Option<Uuid>,
+    reviewed_at: Option<OffsetDateTime>,
+    created_at: OffsetDateTime,
+    updated_at: OffsetDateTime,
+}
+
+impl TryFrom<SpaceMemberRequestRow> for SpaceMemberRequest {
+    type Error = ();
+
+    fn try_from(row: SpaceMemberRequestRow) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: row.id,
+            space_id: row.space_id,
+            requester_actor_id: row.requester_actor_id,
+            target_actor_id: row.target_actor_id,
+            status: SpaceMemberRequestStatus::try_from(row.status.as_str())?,
+            reviewer_actor_id: row.reviewer_actor_id,
+            reviewed_at: row.reviewed_at,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
         })
     }
 }
@@ -127,6 +160,37 @@ pub async fn add_space_member(
         .map_err(|_| sqlx::Error::RowNotFound)?;
 
     Ok(member)
+}
+
+pub async fn insert_space_member(
+    executor: impl PgExecutor<'_>,
+    space_id: Uuid,
+    actor_id: Uuid,
+    role: SpaceMemberRole,
+) -> Result<SpaceMember, sqlx::Error> {
+    let member_id = Uuid::now_v7();
+
+    let row = sqlx::query_as::<_, SpaceMemberRow>(
+        r#"
+        INSERT INTO space_members (id, space_id, actor_id, role)
+        VALUES ($1, $2, $3, $4)
+        RETURNING
+            id,
+            space_id,
+            actor_id,
+            role,
+            joined_at
+        "#,
+    )
+    .bind(member_id)
+    .bind(space_id)
+    .bind(actor_id)
+    .bind(role.as_str())
+    .fetch_one(executor)
+    .await?;
+
+    SpaceMember::try_from(row)
+        .map_err(|_| sqlx::Error::RowNotFound)
 }
 
 pub async fn list_space_members(
@@ -220,6 +284,28 @@ pub async fn is_space_member(
     Ok(exists)
 }
 
+pub async fn is_space_owner_or_admin(
+    pool: &PgPool,
+    space_id: Uuid,
+    actor_id: Uuid,
+) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar(
+        r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM space_members
+            WHERE space_id = $1
+              AND actor_id = $2
+              AND role IN ('owner', 'admin')
+        )
+        "#,
+    )
+    .bind(space_id)
+    .bind(actor_id)
+    .fetch_one(pool)
+    .await
+}
+
 pub async fn create_space_message(
     executor: impl PgExecutor<'_>,
     space_id: Uuid,
@@ -249,6 +335,46 @@ pub async fn create_space_message(
     Ok(message)
 }
 
+pub async fn create_space_member_request(
+    pool: &PgPool,
+    space_id: Uuid,
+    requester_actor_id: Uuid,
+    target_actor_id: Uuid,
+) -> Result<SpaceMemberRequest, sqlx::Error> {
+    let request_id = Uuid::now_v7();
+
+    let row = sqlx::query_as::<_, SpaceMemberRequestRow>(
+        r#"
+        INSERT INTO space_member_requests (
+            id,
+            space_id,
+            requester_actor_id,
+            target_actor_id
+        )
+        VALUES ($1, $2, $3, $4)
+        RETURNING
+            id,
+            space_id,
+            requester_actor_id,
+            target_actor_id,
+            status,
+            reviewer_actor_id,
+            reviewed_at,
+            created_at,
+            updated_at
+        "#,
+    )
+    .bind(request_id)
+    .bind(space_id)
+    .bind(requester_actor_id)
+    .bind(target_actor_id)
+    .fetch_one(pool)
+    .await?;
+
+    SpaceMemberRequest::try_from(row)
+        .map_err(|_| sqlx::Error::RowNotFound)
+}
+
 pub async fn list_space_messages(
     pool: &PgPool,
     space_id: Uuid,
@@ -272,4 +398,151 @@ pub async fn list_space_messages(
     .await?;
 
     Ok(messages)
+}
+
+pub async fn list_pending_space_member_requests(
+    pool: &PgPool,
+    space_id: Uuid,
+) -> Result<Vec<SpaceMemberRequest>, sqlx::Error> {
+    let rows = sqlx::query_as::<_, SpaceMemberRequestRow>(
+        r#"
+        SELECT
+            id,
+            space_id,
+            requester_actor_id,
+            target_actor_id,
+            status,
+            reviewer_actor_id,
+            reviewed_at,
+            created_at,
+            updated_at
+        FROM space_member_requests
+        WHERE space_id = $1
+          AND status = 'pending'
+        ORDER BY created_at ASC
+        "#,
+    )
+    .bind(space_id)
+    .fetch_all(pool)
+    .await?;
+
+    rows.into_iter()
+        .map(|row| {
+            SpaceMemberRequest::try_from(row)
+                .map_err(|_| sqlx::Error::RowNotFound)
+        })
+        .collect()
+}
+
+pub async fn approve_space_member_request(
+    pool: &PgPool,
+    request_id: Uuid,
+    reviewer_actor_id: Uuid,
+) -> Result<Option<SpaceMemberRequest>, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
+    let row = sqlx::query_as::<_, SpaceMemberRequestRow>(
+        r#"
+        UPDATE space_member_requests AS request
+        SET
+            status = 'approved',
+            reviewer_actor_id = $2,
+            reviewed_at = NOW(),
+            updated_at = NOW()
+        WHERE request.id = $1
+          AND request.status = 'pending'
+          AND EXISTS (
+              SELECT 1
+              FROM space_members AS reviewer
+              WHERE reviewer.space_id = request.space_id
+                AND reviewer.actor_id = $2
+                AND reviewer.role IN ('owner', 'admin')
+          )
+          AND EXISTS (
+              SELECT 1
+              FROM actors AS target
+              WHERE target.id = request.target_actor_id
+                AND target.status = 'active'
+          )
+        RETURNING
+            request.id,
+            request.space_id,
+            request.requester_actor_id,
+            request.target_actor_id,
+            request.status,
+            request.reviewer_actor_id,
+            request.reviewed_at,
+            request.created_at,
+            request.updated_at
+        "#,
+    )
+    .bind(request_id)
+    .bind(reviewer_actor_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+
+    let Some(row) = row else {
+        return Ok(None);
+    };
+
+    let request = SpaceMemberRequest::try_from(row)
+        .map_err(|_| sqlx::Error::RowNotFound)?;
+
+    insert_space_member(
+        &mut *tx,
+        request.space_id,
+        request.target_actor_id,
+        SpaceMemberRole::Member,
+    )
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(Some(request))
+}
+
+pub async fn reject_space_member_request(
+    pool: &PgPool,
+    request_id: Uuid,
+    reviewer_actor_id: Uuid,
+) -> Result<Option<SpaceMemberRequest>, sqlx::Error> {
+    let row = sqlx::query_as::<_, SpaceMemberRequestRow>(
+        r#"
+        UPDATE space_member_requests AS request
+        SET
+            status = 'rejected',
+            reviewer_actor_id = $2,
+            reviewed_at = NOW(),
+            updated_at = NOW()
+        WHERE request.id = $1
+          AND request.status = 'pending'
+          AND EXISTS (
+              SELECT 1
+              FROM space_members AS reviewer
+              WHERE reviewer.space_id = request.space_id
+                AND reviewer.actor_id = $2
+                AND reviewer.role IN ('owner', 'admin')
+          )
+        RETURNING
+            request.id,
+            request.space_id,
+            request.requester_actor_id,
+            request.target_actor_id,
+            request.status,
+            request.reviewer_actor_id,
+            request.reviewed_at,
+            request.created_at,
+            request.updated_at
+        "#,
+    )
+    .bind(request_id)
+    .bind(reviewer_actor_id)
+    .fetch_optional(pool)
+    .await?;
+
+    row.map(|row| {
+        SpaceMemberRequest::try_from(row)
+            .map_err(|_| sqlx::Error::RowNotFound)
+    })
+    .transpose()
 }

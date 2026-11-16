@@ -1,7 +1,7 @@
 use axum::{
     extract::{Path, State},
     http::HeaderMap,
-    routing::{get},
+    routing::{get, post},
     Json,
     Router,
 };
@@ -11,16 +11,21 @@ use crate::{
     api::v1::extractors::require_actor_id,
     app::AppState,
     error::AppError,
-    models::space::{
-        CreateSpaceMessageRequest,
-        SpaceMessage,
-        AddSpaceMemberRequest,
-        AddSpaceMemberResponse,
-        CreateSpaceRequest,
-        CreateSpaceResponse,
-        SpaceMemberRole,
+    models::{
+        actor::ActorStatus,
+        space::{
+            AddSpaceMemberRequest,
+            AddSpaceMemberResponse,
+            CreateSpaceMessageRequest,
+            CreateSpaceRequest,
+            CreateSpaceResponse,
+            CreateSpaceMemberRequest,
+            SpaceMemberRequestResponse,
+            SpaceMessage,
+            SpaceMemberRole,
+        },
     },
-    repository::space,
+    repository::{actor, space},
 };
 
 // 空间相关的API路由
@@ -31,7 +36,13 @@ pub fn routes() -> Router<AppState> {
 
     // 成员相关的路由
     let member_routes = get(list_space_members)
-        .post(add_space_member);
+        .post(submit_space_member_request);
+
+    let member_request_routes = get(list_pending_space_member_requests);
+
+    let member_request_action_routes = post(approve_space_member_request);
+
+    let member_request_reject_routes = post(reject_space_member_request);
 
     // 消息相关的路由
     let message_routes = get(list_space_messages)
@@ -40,6 +51,15 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/", root_routes)
         .route("/{id}/members", member_routes)
+        .route("/{id}/member-requests", member_request_routes)
+        .route(
+            "/{id}/member-requests/{request_id}/approve",
+            member_request_action_routes,
+        )
+        .route(
+            "/{id}/member-requests/{request_id}/reject",
+            member_request_reject_routes,
+        )
         .route("/{id}/messages", message_routes)
 }
 
@@ -164,6 +184,68 @@ async fn add_space_member(
     Ok(Json(member.into_response()))
 }
 
+// 提交空间成员申请
+async fn submit_space_member_request(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(space_id): Path<Uuid>,
+    Json(payload): Json<CreateSpaceMemberRequest>,
+) -> Result<Json<SpaceMemberRequestResponse>, AppError> {
+    let requester_actor_id = require_actor_id(
+        &headers,
+        &state.config.auth.jwt_secret,
+    )?;
+
+    let is_member = space::is_space_member(
+        &state.db,
+        space_id,
+        requester_actor_id,
+    )
+    .await
+    .map_err(|_| AppError::Internal("space membership check failed"))?;
+
+    if !is_member {
+        return Err(AppError::Forbidden("not a member of this space"));
+    }
+
+    let target_actor = actor::find_actor_by_id(&state.db, payload.actor_id)
+        .await
+        .map_err(|_| AppError::Internal("target actor lookup failed"))?
+        .ok_or(AppError::NotFound("target actor not found"))?;
+
+    if !matches!(target_actor.status, ActorStatus::Active) {
+        return Err(AppError::BadRequest("target actor is not active"));
+    }
+
+    if space::is_space_member(&state.db, space_id, payload.actor_id)
+        .await
+        .map_err(|_| AppError::Internal("target membership check failed"))?
+    {
+        return Err(AppError::Conflict("actor is already a space member"));
+    }
+
+    let request = space::create_space_member_request(
+        &state.db,
+        space_id,
+        requester_actor_id,
+        payload.actor_id,
+    )
+    .await
+    .map_err(|err| {
+        if matches!(
+            &err,
+            sqlx::Error::Database(database_error)
+                if database_error.is_unique_violation()
+        ) {
+            AppError::Conflict("membership request already pending")
+        } else {
+            AppError::Internal("create membership request failed")
+        }
+    })?;
+
+    Ok(Json(request.into_response()))
+}
+
 // --------------------- 获取空间成员列表 --------------------
 async fn list_space_members(
     State(state): State<AppState>,
@@ -203,6 +285,104 @@ async fn list_space_members(
         
     // 返回空间成员列表作为 JSON 响应
     Ok(Json(response))
+}
+
+// 获取待审批成员申请
+async fn list_pending_space_member_requests(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(space_id): Path<Uuid>,
+) -> Result<Json<Vec<SpaceMemberRequestResponse>>, AppError> {
+    let reviewer_actor_id = require_actor_id(
+        &headers,
+        &state.config.auth.jwt_secret,
+    )?;
+
+    let can_review = space::is_space_owner_or_admin(
+        &state.db,
+        space_id,
+        reviewer_actor_id,
+    )
+    .await
+    .map_err(|_| AppError::Internal("review permission check failed"))?;
+
+    if !can_review {
+        return Err(AppError::Forbidden("only owner or admin can review requests"));
+    }
+
+    let requests = space::list_pending_space_member_requests(
+        &state.db,
+        space_id,
+    )
+    .await
+    .map_err(|_| AppError::Internal("list membership requests failed"))?;
+
+    Ok(Json(
+        requests
+            .into_iter()
+            .map(|request| request.into_response())
+            .collect(),
+    ))
+}
+
+// 批准成员申请
+async fn approve_space_member_request(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path((_space_id, request_id)): Path<(Uuid, Uuid)>,
+) -> Result<Json<SpaceMemberRequestResponse>, AppError> {
+    let reviewer_actor_id = require_actor_id(
+        &headers,
+        &state.config.auth.jwt_secret,
+    )?;
+
+    let request = space::approve_space_member_request(
+        &state.db,
+        request_id,
+        reviewer_actor_id,
+    )
+    .await
+    .map_err(|err| {
+        if matches!(
+            &err,
+            sqlx::Error::Database(database_error)
+                if database_error.is_unique_violation()
+        ) {
+            AppError::Conflict("actor is already a space member")
+        } else {
+            AppError::Internal("approve membership request failed")
+        }
+    })?
+    .ok_or(AppError::Conflict(
+        "request is missing, already reviewed, or target is inactive",
+    ))?;
+
+    Ok(Json(request.into_response()))
+}
+
+// 拒绝成员申请
+async fn reject_space_member_request(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path((_space_id, request_id)): Path<(Uuid, Uuid)>,
+) -> Result<Json<SpaceMemberRequestResponse>, AppError> {
+    let reviewer_actor_id = require_actor_id(
+        &headers,
+        &state.config.auth.jwt_secret,
+    )?;
+
+    let request = space::reject_space_member_request(
+        &state.db,
+        request_id,
+        reviewer_actor_id,
+    )
+    .await
+    .map_err(|_| AppError::Internal("reject membership request failed"))?
+    .ok_or(AppError::Conflict(
+        "request is missing or already reviewed",
+    ))?;
+
+    Ok(Json(request.into_response()))
 }
 
 // --------------------- 创建空间消息 --------------------

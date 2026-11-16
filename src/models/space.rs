@@ -87,6 +87,48 @@ pub enum SpaceMemberRole {
     Member,                                     // 成员 
 }
 
+// 空间成员请求状态枚举
+#[derive(Debug)]
+pub enum SpaceMemberRequestStatus {
+    Pending,
+    Approved,
+    Rejected,
+}
+
+// 空间成员申请模型
+#[derive(Debug)]
+pub struct SpaceMemberRequest {
+    pub id: Uuid,
+    pub space_id: Uuid,
+    pub requester_actor_id: Uuid,
+    pub target_actor_id: Uuid,
+    pub status: SpaceMemberRequestStatus,
+    pub reviewer_actor_id: Option<Uuid>,
+    pub reviewed_at: Option<OffsetDateTime>,
+    pub created_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
+}
+
+// 提交空间成员申请请求
+#[derive(Debug, serde::Deserialize)]
+pub struct CreateSpaceMemberRequest {
+    pub actor_id: Uuid,
+}
+
+// 空间成员申请响应
+#[derive(Debug, serde::Serialize)]
+pub struct SpaceMemberRequestResponse {
+    pub id: Uuid,
+    pub space_id: Uuid,
+    pub requester_actor_id: Uuid,
+    pub target_actor_id: Uuid,
+    pub status: String,
+    pub reviewer_actor_id: Option<Uuid>,
+    pub reviewed_at: Option<OffsetDateTime>,
+    pub created_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
+}
+
 // 空间信息状态枚举
 #[derive(Debug)]
 pub enum SpaceMessageStatus {
@@ -191,6 +233,48 @@ impl SpaceMember {
             space_id: self.space_id,
             actor_id: self.actor_id,
             role: self.role.as_str().to_string(),
+        }
+    }
+}
+
+// 实现空间成员请求状态枚举的转换方法
+impl SpaceMemberRequestStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Approved => "approved",
+            Self::Rejected => "rejected",
+        }
+    }
+}
+
+// 实现空间成员请求状态枚举的字符串转换方法
+impl TryFrom<&str> for SpaceMemberRequestStatus {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "pending" => Ok(Self::Pending),
+            "approved" => Ok(Self::Approved),
+            "rejected" => Ok(Self::Rejected),
+            _ => Err(()),
+        }
+    }
+}
+
+// 实现空间成员请求模型的响应转换方法
+impl SpaceMemberRequest {
+    pub fn into_response(self) -> SpaceMemberRequestResponse {
+        SpaceMemberRequestResponse {
+            id: self.id,
+            space_id: self.space_id,
+            requester_actor_id: self.requester_actor_id,
+            target_actor_id: self.target_actor_id,
+            status: self.status.as_str().to_string(),
+            reviewer_actor_id: self.reviewer_actor_id,
+            reviewed_at: self.reviewed_at,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
         }
     }
 }

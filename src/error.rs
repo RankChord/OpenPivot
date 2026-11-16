@@ -13,6 +13,7 @@ pub enum AppError {
     Internal(&'static str),
     BadRequest(&'static str),
     Forbidden(&'static str),
+    NotFound(&'static str),
 }
 
 // 错误响应结构体
@@ -61,6 +62,12 @@ impl IntoResponse for AppError {
             AppError::Invalid(message) => (
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "invalid",
+                message,
+            ),
+            // 资源未找到
+            AppError::NotFound(message) => (
+                StatusCode::NOT_FOUND,
+                "not_found",
                 message,
             ),
         };
